@@ -14,6 +14,8 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from mamba_ssm.models.mixer_seq_simple import MambaLMHeadModel
 from datasets import load_dataset
 
+### Fine-tune a pretrained model on Alpaca dataset ### 
+
 # Load the Alpaca dataset
 dataset = load_dataset('tatsu-lab/alpaca')
 
