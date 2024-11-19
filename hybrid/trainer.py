@@ -60,7 +60,8 @@ class HybridDataset(Dataset):
 
     
 
-class Trainer(object):
+class Trainer:
+    @staticmethod
     def model_eval(self,dataloader, model, device):
         model.eval() # switch to eval model, will turn off randomness like dropout
         y_true = []
@@ -86,6 +87,7 @@ class Trainer(object):
         acc = accuracy_score(y_true, y_pred)
 
         return acc, f1, y_pred, y_true, sents
+    @staticmethod
     def train(model, dataset_name, param_list, args):
         device  = torch.device('cuda') if args.use_gpu else torch.device('cpu') 
         #### Load data
@@ -105,7 +107,7 @@ class Trainer(object):
 
         #### Init model
         config = {'hidden_dropout_prob': args.hidden_dropout_prob,
-                'num_labels': num_labels,
+                'num_labels': args.num_labels,
                 'hidden_size': 768,
                 'data_dir': '.',
                 'option': args.option}
@@ -114,7 +116,7 @@ class Trainer(object):
 
         # initialize the Senetence Classification Model
         model = model.to(device)
-        optimizer = optim.AdamW(param_list, lr=lr, weight_decay=weight_decay)
+        optimizer = optim.AdamW(param_list, lr=args.lr, weight_decay=args.weight_decay)
         ## run for the specified number of epochs
         print("==Started training====")
         print(torch.device)
@@ -142,14 +144,14 @@ class Trainer(object):
 
             train_loss = train_loss / (num_batches)
 
-            train_acc, train_f1, *_ = model_eval(train_dataloader, model, device)
-            dev_acc, dev_f1, *_ = model_eval(dev_dataloader, model, device)
+            train_acc, train_f1, *_ = Trainer.model_eval(train_dataloader, model, device)
+            dev_acc, dev_f1, *_ = Trainer.model_eval(dev_dataloader, model, device)
 
             if dev_acc > best_dev_acc:
                 best_dev_acc = dev_acc
-                save_model(model, optimizer, args, config, args.filepath)
+                Trainer.save_model(model, optimizer, args, config, args.filepath)
             print(f"epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}")
-
+    @staticmethod
     def save_model(self,model, optimizer, args, config, filepath):
         save_info = {
             'model': model.state_dict(),
@@ -164,7 +166,7 @@ class Trainer(object):
         torch.save(save_info, filepath)
         print(f"save the model to {filepath}")
     
-    def test(args):
+    def test(self,args):
         with torch.no_grad():
             device = torch.device('cuda') if args.use_gpu else torch.device('cpu')
             saved = torch.load(args.filepath)
@@ -174,11 +176,11 @@ class Trainer(object):
             model = model.to(device)
             print(f"load model from {args.filepath}")
             dev_data = create_data(args.dev, 'valid')
-            dev_dataset = BertDataset(dev_data, args)
+            dev_dataset = HybridDataset(dev_data, args)
             dev_dataloader = DataLoader(dev_dataset, shuffle=False, batch_size=args.batch_size, collate_fn=dev_dataset.collate_fn)
 
             test_data = create_data(args.test, 'test')
-            test_dataset = ----
+            #test_dataset = ----
             test_dataloader = DataLoader(test_dataset, shuffle=False, batch_size=args.batch_size, collate_fn=test_dataset.collate_fn)
 
             dev_acc, dev_f1, dev_pred, dev_true, dev_sents = model_eval(dev_dataloader, model, device)
