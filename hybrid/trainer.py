@@ -4,7 +4,7 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 import torch
 import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, random_split
 from sklearn.metrics import classification_report, f1_score, recall_score, accuracy_score
 from hybrid_model import HybridModel
 from datasets import load_dataset
@@ -86,12 +86,14 @@ class Trainer(object):
         acc = accuracy_score(y_true, y_pred)
 
         return acc, f1, y_pred, y_true, sents
-    def train(model, args):
+    def train(model, dataset_name, param_list, args):
         device  = torch.device('cuda') if args.use_gpu else torch.device('cpu') 
         #### Load data
         # create the data and its corresponding datasets and dataloader
         print(device)
-        train_data = load_dataset("imdb", split="train")
+        dataset = load_dataset(dataset_name, split="train")
+        
+        train_data, dev_data = random_split(dataset, [0.8, 0.2])
 
         train_dataset = HybridDataset(train_data, args)
         dev_dataset = HybridDataset(dev_data, args)
@@ -112,7 +114,7 @@ class Trainer(object):
 
         # initialize the Senetence Classification Model
         model = model.to(device)
-        optimizer = optim.AdamW(, lr=lr, weight_decay=weight_decay)
+        optimizer = optim.AdamW(param_list, lr=lr, weight_decay=weight_decay)
         ## run for the specified number of epochs
         print("==Started training====")
         print(torch.device)
