@@ -9,18 +9,15 @@ from sklearn.metrics import classification_report, f1_score, recall_score, accur
 from hybrid_model import HybridModel
 from datasets import load_dataset
 # change it with respect to the original model
-from tokenizer import BertTokenizer
-from bert import BertModel
-from optimizer import AdamW
 from tqdm import tqdm
 import torch.nn as nn
 import torch.optim as optim
 
 class HybridDataset(Dataset):
-    def __init__(self, dataset, args):
+    def __init__(self, dataset, args, tokenizer='EleutherAI/gpt-neo-125M'):
         self.dataset = dataset
         self.p = args
-        self.tokenizer =  AutoTokenizer.from_pretrained('EleutherAI/gpt-neo-125M')
+        self.tokenizer =  AutoTokenizer.from_pretrained(tokenizer)
 
     def __len__(self):
         return len(self.dataset)
@@ -30,8 +27,8 @@ class HybridDataset(Dataset):
         return ele
 
     def pad_data(self, data):
-        sents = [x[0] for x in data]
-        labels = [x[1] for x in data]
+        sents = [x["text"] for x in data]
+        labels = [x["label"] for x in data]
         encoding = self.tokenizer(sents, return_tensors='pt', padding=True, truncation=True)
         token_ids = torch.LongTensor(encoding['input_ids'])
         attention_mask = torch.LongTensor(encoding['attention_mask'])
@@ -61,7 +58,6 @@ class HybridDataset(Dataset):
 
         return batches
 
-
     
 
 class Trainer(object):
@@ -90,21 +86,15 @@ class Trainer(object):
         acc = accuracy_score(y_true, y_pred)
 
         return acc, f1, y_pred, y_true, sents
-    def train(args):
+    def train(model, args):
         device  = torch.device('cuda') if args.use_gpu else torch.device('cpu') 
         #### Load data
         # create the data and its corresponding datasets and dataloader
         print(device)
-        train_data, num_labels = create_data(args.train, 'train')
-        dev_data = create_data(args.dev, 'valid')
-
+        train_data = load_dataset("imdb", split="train")
 
         train_dataset = HybridDataset(train_data, args)
         dev_dataset = HybridDataset(dev_data, args)
-
-        train_data = load_dataset("imdb", split="train")
-
-        train_loader = DataLoader(train_data, batch_size=16, collate_fn=preprocess_function)
 
         train_dataloader = DataLoader(train_dataset, shuffle=True, batch_size=args.batch_size,
                                     collate_fn=train_dataset.collate_fn)
@@ -121,9 +111,8 @@ class Trainer(object):
         config = SimpleNamespace(**config)
 
         # initialize the Senetence Classification Model
-        model = HybridModel()
         model = model.to(device)
-        optimizer = torch.optim.AdamW(model.score.parameters(), lr=lr, weight_decay=weight_decay)
+        optimizer = optim.AdamW(, lr=lr, weight_decay=weight_decay)
         ## run for the specified number of epochs
         print("==Started training====")
         print(torch.device)
