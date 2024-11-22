@@ -6,15 +6,17 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader, random_split
 from sklearn.metrics import classification_report, f1_score, recall_score, accuracy_score
-from hybrid_model import HybridModel
+
 from datasets import load_dataset
 # change it with respect to the original model
 from tqdm import tqdm
 import torch.nn as nn
 import torch.optim as optim
 
+TQDM_DISABLE = False
+
 class HybridDataset(Dataset):
-    def __init__(self, dataset, args, tokenizer='EleutherAI/gpt-neo-125M'):
+    def __init__(self, dataset, args, tokenizer='EleutherAI/gpt-neo-125M', n_samples=None):
         self.dataset = dataset
         self.p = args
         self.tokenizer =  AutoTokenizer.from_pretrained(tokenizer)
@@ -29,17 +31,22 @@ class HybridDataset(Dataset):
     def pad_data(self, data):
         sents = [x["text"] for x in data]
         labels = [x["label"] for x in data]
+        self.tokenizer.pad_token = self.tokenizer.eos_token
+        
         encoding = self.tokenizer(sents, return_tensors='pt', padding=True, truncation=True)
         token_ids = torch.LongTensor(encoding['input_ids'])
         attention_mask = torch.LongTensor(encoding['attention_mask'])
-        token_type_ids = torch.LongTensor(encoding['token_type_ids'])
         labels = torch.LongTensor(labels)
 
-        return token_ids, token_type_ids, attention_mask, labels, sents
+        return token_ids, attention_mask, labels, sents
 
     def collate_fn(self, all_data):
-        all_data.sort(key=lambda x: -len(x[2]))  # sort by number of tokens
-
+        """
+        Args:
+            all_data (List[Dict]): list of data points, each data point is a dictionary
+        """
+        all_data.sort(key=lambda x: len(x['text']), reverse=True)  # sort by number of chars
+    
         batches = []
         num_batches = int(np.ceil(len(all_data) / self.p.batch_size))
 
@@ -47,10 +54,9 @@ class HybridDataset(Dataset):
             start_idx = i * self.p.batch_size
             data = all_data[start_idx: start_idx + self.p.batch_size]
 
-            token_ids, token_type_ids, attention_mask, labels, sents = self.pad_data(data)
+            token_ids, attention_mask, labels, sents = self.pad_data(data)
             batches.append({
                 'token_ids': token_ids,
-                'token_type_ids': token_type_ids,
                 'attention_mask': attention_mask,
                 'labels': labels,
                 'sents': sents,
@@ -62,20 +68,20 @@ class HybridDataset(Dataset):
 
 class Trainer:
     @staticmethod
-    def model_eval(self,dataloader, model, device):
+    def model_eval(dataloader, model, device):
         model.eval() # switch to eval model, will turn off randomness like dropout
         y_true = []
         y_pred = []
         sents = []
         for step, batch in enumerate(tqdm(dataloader, desc=f'eval', disable=TQDM_DISABLE)):
-            b_ids, b_type_ids, b_mask, b_labels, b_sents = batch[0]['token_ids'], batch[0]['token_type_ids'], \
-                                                        batch[0]['attention_mask'], batch[0]['labels'], batch[0]['sents']
+            b_ids, b_mask, b_labels, b_sents = batch[0]['token_ids'], \
+                    batch[0]['attention_mask'], batch[0]['labels'], batch[0]['sents']
 
             b_ids = b_ids.to(device)
             b_mask = b_mask.to(device)
 
-            logits = model(b_ids, b_mask)
-            logits = logits.detach().cpu().numpy()
+            output = model(input_ids=b_ids, attention_mask=b_mask)
+            logits = output.logits.detach().cpu().numpy()
             preds = np.argmax(logits, axis=1).flatten()
 
             b_labels = b_labels.flatten()
@@ -87,12 +93,13 @@ class Trainer:
         acc = accuracy_score(y_true, y_pred)
 
         return acc, f1, y_pred, y_true, sents
+    
     @staticmethod
     def train(model, dataset_name, param_list, args):
         device  = torch.device('cuda') if args.use_gpu else torch.device('cpu') 
         #### Load data
         # create the data and its corresponding datasets and dataloader
-        print(device)
+        print("device:", device)
         dataset = load_dataset(dataset_name, split="train")
         
         train_data, dev_data = random_split(dataset, [0.8, 0.2])
@@ -118,23 +125,22 @@ class Trainer:
         model = model.to(device)
         optimizer = optim.AdamW(param_list, lr=args.lr, weight_decay=args.weight_decay)
         ## run for the specified number of epochs
+        best_dev_acc = 0
         print("==Started training====")
-        print(torch.device)
         for epoch in range(args.epochs):
             model.train()
             train_loss = 0
             num_batches = 0
             for step, batch in enumerate(tqdm(train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE)):
-                b_ids, b_type_ids, b_mask, b_labels, b_sents = batch[0]['token_ids'], batch[0]['token_type_ids'], batch[0][
-                    'attention_mask'], batch[0]['labels'], batch[0]['sents']
+                b_ids, b_mask, b_labels, b_sents = batch[0]['token_ids'], batch[0]['attention_mask'], batch[0]['labels'], batch[0]['sents']
 
                 b_ids = b_ids.to(device)
                 b_mask = b_mask.to(device)
                 b_labels = b_labels.to(device)
                 
                 optimizer.zero_grad()
-                logits = model(b_ids, b_mask)
-                loss = F.nll_loss(logits, b_labels.view(-1), reduction='sum') / args.batch_size
+                output = model(input_ids=b_ids, attention_mask=b_mask) # For GPT-Neo, output type SequenceClassifierOutputWithPast
+                loss = F.nll_loss(output.logits, b_labels.view(-1), reduction='sum') / args.batch_size
 
                 loss.backward()
                 optimizer.step()
@@ -150,7 +156,9 @@ class Trainer:
             if dev_acc > best_dev_acc:
                 best_dev_acc = dev_acc
                 Trainer.save_model(model, optimizer, args, config, args.filepath)
+
             print(f"epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}")
+
     @staticmethod
     def save_model(self,model, optimizer, args, config, filepath):
         save_info = {

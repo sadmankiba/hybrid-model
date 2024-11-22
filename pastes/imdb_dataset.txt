@@ -1,0 +1,8 @@
+{
+    'text': "This Movie is complete crap! Avoid this waste of celluloid at all costs, it is rambling and incoherent. I pride myself on plumbing the depths of 70's sleaze cinema from everything from Salo to Salon Kitty. I like being shocked, but I need a coherent story. However if watching horses mate gets you off this film is for you. The saddest part was that lame werewolf suit with the functional wang. I mean its just plain hard to sit through, not to mention the acting is terrible and the soundtrack is dubbed badly. Please, I know the cover is interesting (what looks like a gorillas hands reaching for a woman's bare ass)but don't waste your time or money as you won't get either back.", 
+    'label': 0
+},
+{
+    'text': "After we counted the use of the f word, oh, about 22 times in the first 10 minutes or so of the film, listened to some really bad actors going on about a woman and a horse, and pretty much acting like 12 year old boys being naughty together, well, we turned it off. Relying on gratuitous profanity and potty humor is a sure sign of a loser Hollywood movie, the product of unimaginative and no-talent writers. <br /><br />We did give it a second chance, thinking surely it would get better. No dice. Later, my boyfriend skipped through the rest of the movie in case it improved, still no dice.<br /><br />The main character did have a cool bike.<br /><br />I wouldn't recommend this to anyone except maybe really immature adolescents, or frat boys.", 
+    'label': 0
+}
