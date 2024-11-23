@@ -140,7 +140,8 @@ class Trainer:
                 
                 optimizer.zero_grad()
                 output = model(input_ids=b_ids, attention_mask=b_mask) # For GPT-Neo, output type SequenceClassifierOutputWithPast
-                loss = F.nll_loss(output.logits, b_labels.view(-1), reduction='sum') / args.batch_size
+                logits = output.logits # (batch_size, n_classes)
+                loss = F.nll_loss(logits, b_labels.view(-1), reduction='sum') / args.batch_size
 
                 loss.backward()
                 optimizer.step()

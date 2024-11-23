@@ -2,9 +2,13 @@ import argparse
 from typing import NamedTuple
 
 from trainer import Trainer
+from mamba.mamba_lmhead import MambaTextClassification
 
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
-
+from transformers import ( 
+    AutoTokenizer, 
+    AutoModelForSequenceClassification, 
+    MambaForCausalLM
+)
 
 
 # Train a transformer model with Trainer 
@@ -28,7 +32,19 @@ def train_gpt_neo(args):
 
     Trainer.train(model, dataset_name, param_list, args)
 
-
+def train_mamba(args):
+    model_name = "state-spaces/mamba-130m-hf"
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    tokenizer.pad_token = tokenizer.eos_token
+    
+    num_classes = 2
+    model = MambaTextClassification(model_name, 2)
+    
+    print("model", model)
+    
+    dataset_name = "imdb"
+    param_list = model.parameters()
+    Trainer.train(model, dataset_name, param_list, args)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train a transformer model with Trainer")
@@ -45,4 +61,5 @@ if __name__ == "__main__":
     args.option = None
     
     print("args:", args)
-    train_gpt_neo(args)
+    # train_gpt_neo(args)
+    train_mamba(args)
