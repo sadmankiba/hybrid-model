@@ -87,6 +87,8 @@ class Trainer:
         acc = accuracy_score(y_true, y_pred)
 
         return acc, f1, y_pred, y_true, sents
+    
+    
     @staticmethod
     def train(model, dataset_name, param_list, args):
         device  = torch.device('cuda') if args.use_gpu else torch.device('cpu') 
