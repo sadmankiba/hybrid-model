@@ -3,6 +3,8 @@ from typing import NamedTuple
 
 from trainer import Trainer
 from mamba.mamba_lmhead import MambaTextClassification
+from hybrid.hybrid_model import HybridModelTextClassification
+from hybrid.model_zoo import get_mamba_causal, get_gpt_neo_causal
 
 from transformers import ( 
     AutoTokenizer, 
@@ -46,6 +48,17 @@ def train_mamba(args):
     param_list = model.parameters()
     Trainer.train(model, dataset_name, param_list, args)
 
+def train_hybrid(args):
+    trans_model = get_gpt_neo_causal()
+    mamba_model = get_mamba_causal()
+    
+    model = HybridModelTextClassification(trans_model, mamba_model, 2)
+    
+    dataset_name = "imdb"
+    param_list = model.parameters()
+    Trainer.train(model, dataset_name, param_list, args)
+    
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train a transformer model with Trainer")
     parser.add_argument("--use_gpu", action="store_true", help="Whether to use GPU for training")
@@ -62,4 +75,5 @@ if __name__ == "__main__":
     
     print("args:", args)
     # train_gpt_neo(args)
-    train_mamba(args)
+    # train_mamba(args)
+    train_hybrid(args)
