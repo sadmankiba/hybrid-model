@@ -10,8 +10,11 @@ class HybridModel(torch.nn.Module):
     12 hybrid blocks. Each hybrid block has one transformer layer
     and two mamba layers.
     """
-    def __init__(self, dim1, dim2):
+    def __init__(self, transfomer_model, mamba_model):
         super(HybridModel, self).__init__()
+
+        dim1 = transfomer_model.transformer.wte.weight.shape[-1]
+        dim2 = mamba_model.backbone.embeddings.weight.shape[-1]
         
         # Create intermediate layers and LM head
         self.combiners = torch.nn.ModuleList([Combiner(dim1, dim2) for _ in range(12)])
