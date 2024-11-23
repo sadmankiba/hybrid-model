@@ -1,0 +1,23 @@
+model: MambaTextClassification(
+  (backbone): MambaForCausalLM(
+    (backbone): MambaModel(
+      (embeddings): Embedding(50280, 768)
+      (layers): ModuleList(
+        (0-23): 24 x MambaBlock(
+          (norm): MambaRMSNorm(768, eps=1e-05)
+          (mixer): MambaMixer(
+            (conv1d): Conv1d(1536, 1536, kernel_size=(4,), stride=(1,), padding=(3,), groups=1536)
+            (act): SiLU()
+            (in_proj): Linear(in_features=768, out_features=3072, bias=False)
+            (x_proj): Linear(in_features=1536, out_features=80, bias=False)
+            (dt_proj): Linear(in_features=48, out_features=1536, bias=True)
+            (out_proj): Linear(in_features=1536, out_features=768, bias=False)
+          )
+        )
+      )
+      (norm_f): MambaRMSNorm(768, eps=1e-05)
+    )
+    (lm_head): Linear(in_features=768, out_features=50280, bias=False)
+  )
+  (cls_head): Linear(in_features=768, out_features=2, bias=True)
+)

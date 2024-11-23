@@ -25,7 +25,8 @@ def train_gpt_neo(args):
     model =  AutoModelForSequenceClassification.from_pretrained(
             model_name, pad_token_id=tokenizer.pad_token_id, 
             num_labels=2, id2label=id2label, label2id=label2id)
-
+    print("model:", model)
+    
     for param in model.transformer.parameters():
         param.requires_grad = False
 
@@ -42,7 +43,10 @@ def train_mamba(args):
     num_classes = 2
     model = MambaTextClassification(model_name, 2)
     
-    print("model", model)
+    for param in model.backbone.parameters():
+        param.requires_grad = False
+    
+    print("model:", model)
     
     dataset_name = "imdb"
     param_list = model.parameters()
@@ -53,6 +57,13 @@ def train_hybrid(args):
     mamba_model = get_mamba_causal()
     
     model = HybridModelTextClassification(trans_model, mamba_model, 2)
+    print("model:", model)
+    for param in model.hybrid_model.trans_model.parameters():
+        param.requires_grad = False
+        
+    for param in model.hybrid_model.mamba_model.parameters():
+        param.requires_grad = False
+    
     
     dataset_name = "imdb"
     param_list = model.parameters()
@@ -62,11 +73,11 @@ def train_hybrid(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train a transformer model with Trainer")
     parser.add_argument("--use_gpu", action="store_true", help="Whether to use GPU for training")
-    parser.add_argument("--epochs", type=int, default=1, help="Number of training epochs")
-    parser.add_argument("--lr", type=float, default=5e-5, help="Learning rate for training")
+    parser.add_argument("--epochs", type=int, default=5, help="Number of training epochs")
+    parser.add_argument("--lr", type=float, default=5e-4, help="Learning rate for training")
     parser.add_argument("--weight_decay", type=float, default=0.01, help="Weight decay for optimizer")
     parser.add_argument("--filepath", type=str, default="models/saved.ptr", help="Path to save the trained model")
-    parser.add_argument("--batch_size", type=int, default=32, help="Batch size for training")
+    parser.add_argument("--batch_size", type=int, default=16, help="Batch size for training")
     
     args = parser.parse_args()
     args.num_labels = 2

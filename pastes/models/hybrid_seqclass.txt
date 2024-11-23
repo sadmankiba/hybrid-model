@@ -1,0 +1,69 @@
+model: HybridModelTextClassification(
+  (hybrid_model): HybridModel(
+    (trans_model): GPTNeoForCausalLM(
+      (transformer): GPTNeoModel(
+        (wte): Embedding(50257, 768)
+        (wpe): Embedding(2048, 768)
+        (drop): Dropout(p=0.0, inplace=False)
+        (h): ModuleList(
+          (0-11): 12 x GPTNeoBlock(
+            (ln_1): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+            (attn): GPTNeoAttention(
+              (attention): GPTNeoSelfAttention(
+                (attn_dropout): Dropout(p=0.0, inplace=False)
+                (resid_dropout): Dropout(p=0.0, inplace=False)
+                (k_proj): Linear(in_features=768, out_features=768, bias=False)
+                (v_proj): Linear(in_features=768, out_features=768, bias=False)
+                (q_proj): Linear(in_features=768, out_features=768, bias=False)
+                (out_proj): Linear(in_features=768, out_features=768, bias=True)
+              )
+            )
+            (ln_2): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+            (mlp): GPTNeoMLP(
+              (c_fc): Linear(in_features=768, out_features=3072, bias=True)
+              (c_proj): Linear(in_features=3072, out_features=768, bias=True)
+              (act): NewGELUActivation()
+              (dropout): Dropout(p=0.0, inplace=False)
+            )
+          )
+        )
+        (ln_f): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+      )
+      (lm_head): Linear(in_features=768, out_features=50257, bias=False)
+    )
+    (mamba_model): MambaForCausalLM(
+      (backbone): MambaModel(
+        (embeddings): Embedding(50280, 768)
+        (layers): ModuleList(
+          (0-23): 24 x MambaBlock(
+            (norm): MambaRMSNorm(768, eps=1e-05)
+            (mixer): MambaMixer(
+              (conv1d): Conv1d(1536, 1536, kernel_size=(4,), stride=(1,), padding=(3,), groups=1536)
+              (act): SiLU()
+              (in_proj): Linear(in_features=768, out_features=3072, bias=False)
+              (x_proj): Linear(in_features=1536, out_features=80, bias=False)
+              (dt_proj): Linear(in_features=48, out_features=1536, bias=True)
+              (out_proj): Linear(in_features=1536, out_features=768, bias=False)
+            )
+          )
+        )
+        (norm_f): MambaRMSNorm(768, eps=1e-05)
+      )
+      (lm_head): Linear(in_features=768, out_features=50280, bias=False)
+    )
+    (combiners): ModuleList(
+      (0-11): 12 x Combiner(
+        (in_proj1): Linear(in_features=768, out_features=768, bias=True)
+        (in_proj2): Linear(in_features=768, out_features=768, bias=True)
+      )
+    )
+    (splitters): ModuleList(
+      (0-11): 12 x Splitter(
+        (out_proj1): Linear(in_features=768, out_features=768, bias=True)
+        (out_proj2): Linear(in_features=768, out_features=768, bias=True)
+      )
+    )
+    (hybrid_lm_head): Linear(in_features=768, out_features=50257, bias=True)
+  )
+  (cls_head): Linear(in_features=768, out_features=2, bias=True)
+)
