@@ -25,8 +25,7 @@ def train_gpt_neo(args):
 
     model =  AutoModelForSequenceClassification.from_pretrained(
             model_name, pad_token_id=tokenizer.pad_token_id, 
-            num_labels=2, id2label=id2label, label2id=label2id,
-            torch_dtype=torch.float16, attn_implementation="flash_attention_2")
+            num_labels=2, id2label=id2label, label2id=label2id)
     print("model:", model)
     
     for param in model.transformer.parameters():
@@ -70,7 +69,7 @@ def train_hybrid(args):
     
     dataset_name = "imdb"
     param_list = model.parameters() # TODO: Confirm it works
-    Trainer.train(model, dataset_name, param_list, args)
+    Trainer.train(model, gpt_neo_tokenizer_id, dataset_name, param_list, args)
     
 
 if __name__ == "__main__":
@@ -84,6 +83,9 @@ if __name__ == "__main__":
     parser.add_argument("--log_interval", type=int, default=0, help="Log training loss every n steps")
     parser.add_argument("--train_size", type=int, default=0, help="Number of training examples")
     parser.add_argument("--eval_size", type=int, default=0, help="Number of dev examples")
+    parser.add_argument("--run_trans", action="store_true", help="Run the transformers model")
+    parser.add_argument("--run_mamba", action="store_true", help="Run the Mamba model")
+    parser.add_argument("--run_hybrid", action="store_true", help="Run the Hybrid model")
     
     args = parser.parse_args()
     args.num_labels = 2
@@ -91,6 +93,12 @@ if __name__ == "__main__":
     args.option = None
     
     print("args:", args)
-    # train_gpt_neo(args)
-    # train_mamba(args)
-    train_hybrid(args)
+    
+    if args.run_trans:
+        train_gpt_neo(args)
+    
+    if args.run_mamba:
+        train_mamba(args)
+        
+    if args.run_hybrid:
+        train_hybrid(args)

@@ -159,7 +159,7 @@ class Trainer:
                 with torch.autocast(device_type=str(device), dtype=torch.float16, enabled=use_amp):
                     output = model(input_ids=b_ids, attention_mask=b_mask) # For GPT-Neo, output type SequenceClassifierOutputWithPast
                     logits = output.logits # Classification: (batch_size, n_classes) # LM: (batch_size, vocab_size)
-                    loss = F.nll_loss(logits, b_labels.view(-1), reduction='sum') / args.batch_size
+                    loss = F.nll_loss(F.log_softmax(logits, dim=1), b_labels, reduction='mean')
 
                 scaler.scale(loss).backward()
                 scaler.step(optimizer)
@@ -176,7 +176,7 @@ class Trainer:
                 
                 if args.log_interval > 0 and step % args.log_interval == 0:
                     dev_acc, dev_f1, *_ = Trainer.model_eval(dev_dataloader, model, device)
-                    print(f"epoch {epoch}, step {step}: train loss :: {train_loss / (step + 1) :.3f}, dev acc :: {dev_acc :.3f}")
+                    print(f"epoch {epoch}, step {step}: train loss :: {loss.item() :.3f}, dev acc :: {dev_acc :.3f}")
 
                 if (epoch + step / len(train_dataloader)) >= args.epochs:
                     break
@@ -193,7 +193,7 @@ class Trainer:
             print(f"epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}")
 
     @staticmethod
-    def save_model(self,model, optimizer, args, config, filepath):
+    def save_model(model, optimizer, args, config, filepath):
         save_info = {
             'model': model.state_dict(),
             'optim': optimizer.state_dict(),
