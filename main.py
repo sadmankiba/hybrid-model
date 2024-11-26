@@ -1,6 +1,7 @@
 import argparse
 from typing import NamedTuple
 
+import torch
 from trainer import Trainer
 from mamba.mamba_lmhead import MambaTextClassification
 from hybrid.hybrid_model import HybridModelTextClassification
@@ -24,7 +25,8 @@ def train_gpt_neo(args):
 
     model =  AutoModelForSequenceClassification.from_pretrained(
             model_name, pad_token_id=tokenizer.pad_token_id, 
-            num_labels=2, id2label=id2label, label2id=label2id)
+            num_labels=2, id2label=id2label, label2id=label2id,
+            torch_dtype=torch.float16, attn_implementation="flash_attention_2")
     print("model:", model)
     
     for param in model.transformer.parameters():

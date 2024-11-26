@@ -82,14 +82,21 @@ class Trainer:
             b_ids = b_ids.to(device)
             b_mask = b_mask.to(device)
 
-            output = model(input_ids=b_ids, attention_mask=b_mask)
-            logits = output.logits.detach().cpu().numpy()
+            with torch.no_grad():
+                output = model(input_ids=b_ids, attention_mask=b_mask)
+                logits = output.logits.detach().cpu().numpy()
+           
             preds = np.argmax(logits, axis=1).flatten()
 
             b_labels = b_labels.flatten()
             y_true.extend(b_labels)
             y_pred.extend(preds)
             sents.extend(b_sents)
+            
+            if step % 5 == 0:
+                # Can cut down the memory usage to 1/3rd, but slows down evaluation
+                torch.cuda.empty_cache()  # Releases all unoccupied cached memory currently held by the caching allocator
+                torch.cuda.synchronize()  # Wait for all kernels in all streams on a CUDA device to complete
 
         f1 = f1_score(y_true, y_pred, average='macro')
         acc = accuracy_score(y_true, y_pred)
@@ -130,6 +137,8 @@ class Trainer:
         config = SimpleNamespace(**config)
 
         # initialize the Senetence Classification Model
+        use_amp = True   # Mixed Precision Training reduces memory usage
+        scaler = torch.amp.GradScaler(enabled=use_amp)
         model = model.to(device)
         optimizer = optim.AdamW(param_list, lr=args.lr, weight_decay=args.weight_decay)
         ## run for the specified number of epochs
@@ -147,13 +156,20 @@ class Trainer:
                 b_mask = b_mask.to(device)
                 b_labels = b_labels.to(device)
                 
-                optimizer.zero_grad()
-                output = model(input_ids=b_ids, attention_mask=b_mask) # For GPT-Neo, output type SequenceClassifierOutputWithPast
-                logits = output.logits # (batch_size, n_classes)
-                loss = F.nll_loss(logits, b_labels.view(-1), reduction='sum') / args.batch_size
+                with torch.autocast(device_type=str(device), dtype=torch.float16, enabled=use_amp):
+                    output = model(input_ids=b_ids, attention_mask=b_mask) # For GPT-Neo, output type SequenceClassifierOutputWithPast
+                    logits = output.logits # (batch_size, n_classes)
+                    loss = F.nll_loss(logits, b_labels.view(-1), reduction='sum') / args.batch_size
 
-                loss.backward()
-                optimizer.step()
+                scaler.scale(loss).backward()
+                scaler.step(optimizer)
+                scaler.update()
+                
+                # Scaler is used instead of these steps
+                # loss.backward()
+                # optimizer.step()
+                
+                optimizer.zero_grad()
 
                 train_loss += loss.item()
                 num_batches += 1
