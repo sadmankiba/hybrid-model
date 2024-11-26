@@ -1,5 +1,7 @@
 import time, random, numpy as np, argparse, sys, re, os
+import math
 from types import SimpleNamespace
+import torch.utils.data.dataset
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 import torch
@@ -16,10 +18,10 @@ import torch.optim as optim
 TQDM_DISABLE = False
 
 class HybridDataset(Dataset):
-    def __init__(self, dataset, args, tokenizer='EleutherAI/gpt-neo-125M', n_samples=None):
+    def __init__(self, dataset, args, tokenizer_id='EleutherAI/gpt-neo-125M', n_samples=None):
         self.dataset = dataset
         self.p = args
-        self.tokenizer =  AutoTokenizer.from_pretrained(tokenizer)
+        self.tokenizer =  AutoTokenizer.from_pretrained(tokenizer_id)
 
     def __len__(self):
         return len(self.dataset)
@@ -96,7 +98,7 @@ class Trainer:
     
     
     @staticmethod
-    def train(model, dataset_name, param_list, args):
+    def train(model, tokenizer_id, dataset_name, param_list, args):
         device  = torch.device('cuda') if args.use_gpu else torch.device('cpu') 
         #### Load data
         # create the data and its corresponding datasets and dataloader
@@ -104,9 +106,14 @@ class Trainer:
         dataset = load_dataset(dataset_name, split="train")
         
         train_data, dev_data = random_split(dataset, [0.8, 0.2])
-
-        train_dataset = HybridDataset(train_data, args)
-        dev_dataset = HybridDataset(dev_data, args)
+        if args.train_size > 0:
+            train_data = torch.utils.data.dataset.Subset(train_data, range(args.train_size))
+        
+        if args.eval_size > 0:
+            dev_data = torch.utils.data.dataset.Subset(dev_data, range(args.eval_size))
+        
+        train_dataset = HybridDataset(train_data, args, tokenizer_id)
+        dev_dataset = HybridDataset(dev_data, args, tokenizer_id)
 
         train_dataloader = DataLoader(train_dataset, shuffle=True, batch_size=args.batch_size,
                                     collate_fn=train_dataset.collate_fn)
@@ -128,10 +135,11 @@ class Trainer:
         ## run for the specified number of epochs
         best_dev_acc = 0
         print("==Started training====")
-        for epoch in range(args.epochs):
+        for epoch in range(math.ceil(args.epochs)):
             model.train()
             train_loss = 0
             num_batches = 0
+            print("len of train_dataloader:", len(train_dataloader))
             for step, batch in enumerate(tqdm(train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE)):
                 b_ids, b_mask, b_labels, b_sents = batch[0]['token_ids'], batch[0]['attention_mask'], batch[0]['labels'], batch[0]['sents']
 
@@ -149,6 +157,13 @@ class Trainer:
 
                 train_loss += loss.item()
                 num_batches += 1
+                
+                if args.log_interval > 0 and step % args.log_interval == 0:
+                    dev_acc, dev_f1, *_ = Trainer.model_eval(dev_dataloader, model, device)
+                    print(f"epoch {epoch}, step {step}: train loss :: {train_loss / (step + 1) :.3f}, dev acc :: {dev_acc :.3f}")
+
+                if (epoch + step / len(train_dataloader)) >= args.epochs:
+                    break
 
             train_loss = train_loss / (num_batches)
 

@@ -33,7 +33,7 @@ def train_gpt_neo(args):
     dataset_name = "imdb"
     param_list = model.score.parameters()
 
-    Trainer.train(model, dataset_name, param_list, args)
+    Trainer.train(model, model_name, dataset_name, param_list, args)
 
 def train_mamba(args):
     model_name = "state-spaces/mamba-130m-hf"
@@ -50,9 +50,10 @@ def train_mamba(args):
     
     dataset_name = "imdb"
     param_list = model.parameters()
-    Trainer.train(model, dataset_name, param_list, args)
+    Trainer.train(model, model_name, dataset_name, param_list, args)
 
 def train_hybrid(args):
+    gpt_neo_tokenizer_id = 'EleutherAI/gpt-neo-125M'
     trans_model = get_gpt_neo_causal()
     mamba_model = get_mamba_causal()
     
@@ -73,11 +74,14 @@ def train_hybrid(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train a transformer model with Trainer")
     parser.add_argument("--use_gpu", action="store_true", help="Whether to use GPU for training")
-    parser.add_argument("--epochs", type=int, default=5, help="Number of training epochs")
+    parser.add_argument("--epochs", type=float, default=5, help="Number of training epochs")
     parser.add_argument("--lr", type=float, default=5e-4, help="Learning rate for training")
     parser.add_argument("--weight_decay", type=float, default=0.01, help="Weight decay for optimizer")
     parser.add_argument("--filepath", type=str, default="models/saved.ptr", help="Path to save the trained model")
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size for training")
+    parser.add_argument("--log_interval", type=int, default=0, help="Log training loss every n steps")
+    parser.add_argument("--train_size", type=int, default=0, help="Number of training examples")
+    parser.add_argument("--eval_size", type=int, default=0, help="Number of dev examples")
     
     args = parser.parse_args()
     args.num_labels = 2
