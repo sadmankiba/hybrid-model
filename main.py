@@ -74,11 +74,14 @@ def train_hybrid(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train a transformer model with Trainer")
     parser.add_argument("--use_gpu", action="store_true", help="Whether to use GPU for training")
-    parser.add_argument("--epochs", type=int, default=5, help="Number of training epochs")
+    parser.add_argument("--epochs", type=float, default=5, help="Number of training epochs")
     parser.add_argument("--lr", type=float, default=5e-4, help="Learning rate for training")
     parser.add_argument("--weight_decay", type=float, default=0.01, help="Weight decay for optimizer")
     parser.add_argument("--filepath", type=str, default="models/saved.ptr", help="Path to save the trained model")
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size for training")
+    parser.add_argument("--log_interval", type=int, default=0, help="Log training loss every n steps")
+    parser.add_argument("--train_size", type=int, default=0, help="Number of training examples")
+    parser.add_argument("--eval_size", type=int, default=0, help="Number of dev examples")
     
     args = parser.parse_args()
     args.num_labels = 2
