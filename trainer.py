@@ -158,7 +158,7 @@ class Trainer:
                 
                 with torch.autocast(device_type=str(device), dtype=torch.float16, enabled=use_amp):
                     output = model(input_ids=b_ids, attention_mask=b_mask) # For GPT-Neo, output type SequenceClassifierOutputWithPast
-                    logits = output.logits # (batch_size, n_classes)
+                    logits = output.logits # Classification: (batch_size, n_classes) # LM: (batch_size, vocab_size)
                     loss = F.nll_loss(logits, b_labels.view(-1), reduction='sum') / args.batch_size
 
                 scaler.scale(loss).backward()

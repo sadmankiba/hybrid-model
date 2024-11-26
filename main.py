@@ -69,8 +69,8 @@ def train_hybrid(args):
     
     
     dataset_name = "imdb"
-    param_list = model.parameters()
-    Trainer.train(model, gpt_neo_tokenizer_id, dataset_name, param_list, args)
+    param_list = model.parameters() # TODO: Confirm it works
+    Trainer.train(model, dataset_name, param_list, args)
     
 
 if __name__ == "__main__":
