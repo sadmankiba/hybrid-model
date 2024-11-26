@@ -66,7 +66,7 @@ def train_hybrid(args):
     
     
     dataset_name = "imdb"
-    param_list = model.parameters()
+    param_list = model.parameters() # TODO: Confirm it works
     Trainer.train(model, dataset_name, param_list, args)
     
 
