@@ -90,5 +90,5 @@ if __name__ == "__main__":
     
     print("args:", args)
     # train_gpt_neo(args)
-    train_mamba(args)
-    # train_hybrid(args)
+    # train_mamba(args)
+    train_hybrid(args)
