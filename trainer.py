@@ -16,10 +16,10 @@ import torch.optim as optim
 TQDM_DISABLE = False
 
 class HybridDataset(Dataset):
-    def __init__(self, dataset, args, tokenizer='EleutherAI/gpt-neo-125M', n_samples=None):
+    def __init__(self, dataset, args, tokenizer_id='EleutherAI/gpt-neo-125M', n_samples=None):
         self.dataset = dataset
         self.p = args
-        self.tokenizer =  AutoTokenizer.from_pretrained(tokenizer)
+        self.tokenizer =  AutoTokenizer.from_pretrained(tokenizer_id)
 
     def __len__(self):
         return len(self.dataset)
@@ -96,7 +96,7 @@ class Trainer:
     
     
     @staticmethod
-    def train(model, dataset_name, param_list, args):
+    def train(model, tokenizer_id, dataset_name, param_list, args):
         device  = torch.device('cuda') if args.use_gpu else torch.device('cpu') 
         #### Load data
         # create the data and its corresponding datasets and dataloader
@@ -105,8 +105,8 @@ class Trainer:
         
         train_data, dev_data = random_split(dataset, [0.8, 0.2])
 
-        train_dataset = HybridDataset(train_data, args)
-        dev_dataset = HybridDataset(dev_data, args)
+        train_dataset = HybridDataset(train_data, args, tokenizer_id)
+        dev_dataset = HybridDataset(dev_data, args, tokenizer_id)
 
         train_dataloader = DataLoader(train_dataset, shuffle=True, batch_size=args.batch_size,
                                     collate_fn=train_dataset.collate_fn)

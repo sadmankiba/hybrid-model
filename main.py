@@ -33,7 +33,7 @@ def train_gpt_neo(args):
     dataset_name = "imdb"
     param_list = model.score.parameters()
 
-    Trainer.train(model, dataset_name, param_list, args)
+    Trainer.train(model, model_name, dataset_name, param_list, args)
 
 def train_mamba(args):
     model_name = "state-spaces/mamba-130m-hf"
@@ -50,9 +50,10 @@ def train_mamba(args):
     
     dataset_name = "imdb"
     param_list = model.parameters()
-    Trainer.train(model, dataset_name, param_list, args)
+    Trainer.train(model, model_name, dataset_name, param_list, args)
 
 def train_hybrid(args):
+    gpt_neo_tokenizer_id = 'EleutherAI/gpt-neo-125M'
     trans_model = get_gpt_neo_causal()
     mamba_model = get_mamba_causal()
     
@@ -67,7 +68,7 @@ def train_hybrid(args):
     
     dataset_name = "imdb"
     param_list = model.parameters()
-    Trainer.train(model, dataset_name, param_list, args)
+    Trainer.train(model, gpt_neo_tokenizer_id, dataset_name, param_list, args)
     
 
 if __name__ == "__main__":
@@ -86,5 +87,5 @@ if __name__ == "__main__":
     
     print("args:", args)
     # train_gpt_neo(args)
-    # train_mamba(args)
-    train_hybrid(args)
+    train_mamba(args)
+    # train_hybrid(args)
