@@ -4,7 +4,6 @@ import torch
 from transformers import AutoTokenizer
 
 from .projector import Combiner, Splitter
-from .model_zoo import get_mamba_causal, get_gpt_neo_causal
 
 class HybridModel(torch.nn.Module):
     """
@@ -13,16 +12,21 @@ class HybridModel(torch.nn.Module):
     12 hybrid blocks. Each hybrid block has one transformer layer
     and two mamba layers.
     """
-    def __init__(self, transfomer_model, mamba_model):
+    def __init__(self, transfomer_model, mamba_model, n_hybrid_blocks=12):
         super(HybridModel, self).__init__()
         self.trans_model = transfomer_model
         self.mamba_model = mamba_model
+        self.n_blocks = n_hybrid_blocks
+        self.n_trans_layers = len(transfomer_model.transformer.h)
+        self.n_mamba_layers = len(mamba_model.backbone.layers)
+        assert self.n_trans_layers % self.n_blocks == 0
+        assert self.n_mamba_layers % self.n_blocks == 0
         dim1 = transfomer_model.transformer.wte.weight.shape[-1]
         dim2 = mamba_model.backbone.embeddings.weight.shape[-1]
         
         # Create intermediate layers and LM head
-        self.combiners = torch.nn.ModuleList([Combiner(dim1, dim2) for _ in range(12)])
-        self.splitters = torch.nn.ModuleList([Splitter(dim1, dim2) for _ in range(12)])
+        self.combiners = torch.nn.ModuleList([Combiner(dim1, dim2) for _ in range(n_hybrid_blocks)])
+        self.splitters = torch.nn.ModuleList([Splitter(dim1, dim2) for _ in range(n_hybrid_blocks)])
         self.proj_dim = max(dim1, dim2)
         self.hybrid_lm_head = torch.nn.Linear(self.proj_dim, self.trans_model.lm_head.out_features)
 
@@ -44,11 +48,15 @@ class HybridModel(torch.nn.Module):
         # Pass the input through each block and intermediate layers
         combined_emb = trans_input_emb  # (batch_size, seq_len, proj_dim)
         hidden_states = (combined_emb, )
-        for i in range(12):
+        trans_layers_per_block = self.n_trans_layers // self.n_blocks
+        mamba_layers_per_block = self.n_mamba_layers // self.n_blocks
+        for i in range(self.n_blocks):
             trans_input_emb, mamba_input_embeds = self.splitters[i](combined_emb)
-            trans_input_emb = trans_layers[i](trans_input_emb)[0]
-            mamba_input_embeds = mamba_layers[2*i](mamba_input_embeds)
-            mamba_input_embeds = mamba_layers[2*i+1](mamba_input_embeds)
+            for j in range(trans_layers_per_block):
+                trans_input_emb = trans_layers[trans_layers_per_block * i + j](trans_input_emb)[0]    
+            for k in range(mamba_layers_per_block):
+                mamba_input_embeds = mamba_layers[mamba_layers_per_block * i + k](mamba_input_embeds)
+            
             combined_emb = self.combiners[i](trans_input_emb, mamba_input_embeds)
             hidden_states += (combined_emb, )
         
