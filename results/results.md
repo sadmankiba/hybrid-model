@@ -4,7 +4,8 @@
 ## Memory Usage
 
 Mamba 130m backbone-freezed fine-tuning
-* IMDB batch size 1 : 2200 MB
+* IMDB batch size 1 : 2200 MB (without amp)
+* IMDB batch size 1 : 1400 MB (with amp)
 
 Hybrid GPT-Neo + Mamba 130m backbone-freezed fine-tuning
 * IMDB batch size 1: 9800 MB
@@ -12,11 +13,8 @@ Hybrid GPT-Neo + Mamba 130m backbone-freezed fine-tuning
 ## IMDB Classification 
 
 **GPT-Neo Frozen**
-batch size 1, without log-softmax on logits
-Train loss decreased abruptly (to -50, -80 etc.)
-Epoch 0, Step 2000: dev acc: 0.62
-Epoch 0, Step 3000: dev acc: 0.68
-Epoch 0, Step 4000: dev acc: 0.58
+Epoch 1. Train size 20000. Batch size 1. LR 5e-5
+dev acc: 0.85
 
 batch size 1, with log-softmax on logits
 Train loss was stably above 0 (around 0.3, 0.2), decreased gradually.
@@ -24,6 +22,14 @@ Epoch 0, Step 2000: dev acc: 0.75
 Epoch 0, Step 3000: dev acc: 0.79
 Epoch 0, Step 4000: dev acc: 0.80
 
-**Mamba**
-Config: epoch = 1, lr = 5e-5, batch_size = 1, train_size 5000 eval_size 200
+batch size 1, without log-softmax on logits
+Train loss decreased abruptly (to -50, -80 etc.)
+Epoch 0, Step 2000: dev acc: 0.62
+Epoch 0, Step 3000: dev acc: 0.68
+Epoch 0, Step 4000: dev acc: 0.58
 
+**Mamba**  
+Epoch = 1, lr = 5e-5, batch_size = 1, train_size 5000 eval_size 200.
+dev acc: 0.8
+
+**Hybrid**  
