@@ -9,20 +9,22 @@ class HybridModel(nn.Module):
     12 hybrid blocks. Each hybrid block has one transformer layer
     and two mamba layers.
     """
-    def __init__(self, transformer_model, mamba_model):
+    def __init__(self, transformer_model, mamba_model,device):
         super(HybridModel, self).__init__()
-        self.transformer_model = transformer_model
+        self.transformer_model = transformer_model.to(device)
+        
 
-        self.mamba_model = mamba_model 
+        self.mamba_model = mamba_model.to(device)
         dim1 = self.transformer_model.wte.weight.shape[-1]
+        print("WEIGHT",self.transformer_model.wte.weight.device)
         dim2 = self.mamba_model.embeddings.weight.shape[-1]
         
         # Create intermediate layers and LM head
-        self.combiners = torch.nn.ModuleList([Combiner(dim1, dim2) for _ in range(12)])
-        self.splitters = torch.nn.ModuleList([Splitter(dim1, dim2) for _ in range(12)])
+        self.combiners = torch.nn.ModuleList([Combiner(dim1, dim2) for _ in range(12)]).to(device)
+        self.splitters = torch.nn.ModuleList([Splitter(dim1, dim2) for _ in range(12)]).to(device)
         self.proj_dim = max(dim1, dim2)
-
-        self.hybrid_lm_head = torch.nn.Linear(self.proj_dim, self.transformer_model.wte.weight.shape[0])
+        # bias=False???
+        self.hybrid_lm_head = torch.nn.Linear(self.proj_dim, self.transformer_model.wte.weight.shape[0]).to(device)
 
     def forward(self, input_data):
         # Get the transformer and mamba model layers
@@ -60,6 +62,8 @@ class HybridModel(nn.Module):
                 if next_token_id.item() == self.transformer_model.config.eos_token_id:
                     break
             return generated_ids
+    
+
 
 
 
