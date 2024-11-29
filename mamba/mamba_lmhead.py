@@ -1,4 +1,5 @@
 from collections import namedtuple
+from typing import Union
 
 import torch
 import torch.nn as nn
@@ -6,16 +7,20 @@ from transformers import AutoTokenizer, MambaForCausalLM
 
 
 class MambaTextClassification(nn.Module):
-    def __init__(self, model_name, n_classes) -> None:
+    def __init__(self, tokenizer_name: str, 
+          model: Union[str, nn.Module], n_classes: int) -> None:
         super(MambaTextClassification, self).__init__() 
         
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
         self.tokenizer.pad_token = self.tokenizer.eos_token
-    
-        self.backbone = MambaForCausalLM.from_pretrained(model_name, 
-            pad_token_id=self.tokenizer.pad_token_id, output_hidden_states=True)
-        d_model = self.backbone.config.hidden_size
+
+        if type(model) == str:
+            self.backbone = MambaForCausalLM.from_pretrained(model, 
+                pad_token_id=self.tokenizer.pad_token_id, output_hidden_states=True)
+        else:
+            self.backbone = model
         
+        d_model = self.backbone.config.hidden_size
         self.cls_head = nn.Linear(d_model, n_classes)
 
     def forward(self, input_ids, attention_mask=None, labels=None):
@@ -25,6 +30,12 @@ class MambaTextClassification(nn.Module):
         # hidden_states is a Tuple of FloatTensors. Contains hidden states of the 
         # model at each layer + normalized last hidden state. All FloatTensors has same shape 
         # (batch_size, seq_len, d_model).  
+        # print("output", output)
+        # print("output fields:")
+        # for field in output._fields:
+        #   print("field:", field)
+            
+        # exit()
         last_hidden_states = output.hidden_states[-1]  
         mean_hidden_states = last_hidden_states.mean(dim=1) # (batch_size, d_model)
         logits = self.cls_head(mean_hidden_states) # (batch_size, n_classes)

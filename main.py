@@ -8,16 +8,13 @@ from hybrid.hybrid_model import HybridModelTextClassification
 from hybrid.model_zoo import (
     get_mamba_causal, 
     get_gpt_neo_causal,
-    get_gpt_neo_initd,
-    get_gpt_neo_initd_seq_cls,
-    get_mamba_initd,
 )
 
 from transformers import ( 
     AutoConfig,
     AutoTokenizer, 
     AutoModelForSequenceClassification, 
-    MambaForCausalLM
+    AutoModelForCausalLM,
 )
 
 gpt_neo_model_checkpoint = "EleutherAI/gpt-neo-125M"
@@ -25,7 +22,7 @@ mamba_model_checkpoint = "state-spaces/mamba-130m-hf"
 
 
 # Train a transformer model with Trainer 
-def train_gpt_neo(args):
+def train_gpt_neo_pretrained(args):
     model_name = gpt_neo_model_checkpoint
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     tokenizer.pad_token = tokenizer.eos_token
@@ -46,13 +43,11 @@ def train_gpt_neo(args):
 
     Trainer.train(model, model_name, dataset_name, param_list, args)
 
-def train_mamba(args):
-    model_name = mamba_model_checkpoint
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    tokenizer.pad_token = tokenizer.eos_token
+def train_mamba_pretrained(args):
+    tokenizer_name = mamba_model_checkpoint
     
-    num_classes = 2
-    model = MambaTextClassification(model_name, 2)
+    model = MambaTextClassification(tokenizer_name, 
+            mamba_model_checkpoint, args.num_labels)
     
     for param in model.backbone.parameters():
         param.requires_grad = False
@@ -61,7 +56,7 @@ def train_mamba(args):
     
     dataset_name = "imdb"
     param_list = model.parameters()
-    Trainer.train(model, model_name, dataset_name, param_list, args)
+    Trainer.train(model, tokenizer_name, dataset_name, param_list, args)
 
 def train_gpt_neo_initd(args):
     model_name = gpt_neo_model_checkpoint
@@ -89,6 +84,25 @@ def train_gpt_neo_initd(args):
     param_list = model.score.parameters()
 
     Trainer.train(model, model_name, dataset_name, param_list, args)
+
+def train_mamba_initd(args):
+    tokenizer_name = mamba_model_checkpoint
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+    tokenizer.pad_token = tokenizer.eos_token
+    
+    config = AutoConfig.from_pretrained(mamba_model_checkpoint,
+            num_hidden_layers=args.num_layers, 
+            hidden_size=args.hidden_size, 
+            pad_token_id=tokenizer.pad_token_id, 
+            output_hidden_states=True
+    )
+    backbone_model = AutoModelForCausalLM.from_config(config)
+    model = MambaTextClassification(tokenizer_name, backbone_model, args.num_labels)
+    print("model:", model)
+    
+    dataset_name = "imdb"
+    param_list = model.parameters()
+    Trainer.train(model, tokenizer_name, dataset_name, param_list, args)
 
 def train_hybrid(args):
     gpt_neo_tokenizer_id = 'EleutherAI/gpt-neo-125M'
@@ -127,6 +141,7 @@ if __name__ == "__main__":
     parser.add_argument("--run_mamba", action="store_true", help="Run the Mamba model")
     parser.add_argument("--run_hybrid", action="store_true", help="Run the Hybrid model")
     parser.add_argument("--run_gpt_neo_initd", action="store_true", help="Run the GPT-Neo model")
+    parser.add_argument("--run_mamba_initd", action="store_true", help="Run the Mamba model")
     
     # Initialized models
     parser.add_argument("--num_layers", type=int, default=12, help="Number of layers for the model")
@@ -141,13 +156,16 @@ if __name__ == "__main__":
     print("args:", args)
     
     if args.run_trans:
-        train_gpt_neo(args)
+        train_gpt_neo_pretrained(args)
     
     if args.run_mamba:
-        train_mamba(args)
+        train_mamba_pretrained(args)
         
     if args.run_hybrid:
         train_hybrid(args)
         
     if args.run_gpt_neo_initd:
         train_gpt_neo_initd(args)
+        
+    if args.run_mamba_initd:
+        train_mamba_initd(args)

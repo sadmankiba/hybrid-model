@@ -10,3 +10,6 @@ python3 main.py --use_gpu --epochs 1 --log_interval 200 --lr 5e-5 --batch_size 1
 python3 main.py --run_gpt_neo_initd --num_layers 4 --hidden_size 128 --num_heads 4 \
     --epochs 10 --log_interval 200 --lr 5e-5 --batch_size 8 \
     --train_size 20000 --eval_size 1000 --use_gpu 
+python3 main.py --run_mamba_initd --num_layers 4 --hidden_size 128 \
+    --epochs 1 --log_interval 200 --lr 5e-5 --batch_size 4 \
+    --train_size 2000 --eval_size 200 --use_gpu 
