@@ -1,23 +1,25 @@
-import torch
-from transformers import MambaForCausalLM, AutoTokenizer
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import ( 
+    AutoTokenizer, 
+    AutoModelForCausalLM,
+    MambaForCausalLM,
+)
 
-# Load tokenizer and pretrained model
+gpt_neo_model_checkpoint = "EleutherAI/gpt-neo-125M"
+mamba_model_checkpoint = "state-spaces/mamba-130m-hf"
 
-def get_mamba_causal():
-    mamba_model = MambaForCausalLM.from_pretrained("state-spaces/mamba-130m-hf")
-    return mamba_model
-
+# Load pretrained and initialized models
  
 def get_gpt_neo_causal():
-    model_name = 'EleutherAI/gpt-neo-125M'
     trans_model = AutoModelForCausalLM.from_pretrained(
-        model_name,
+        gpt_neo_model_checkpoint,
         torch_dtype="auto",
         device_map="cpu"
     )
     return trans_model
 
+def get_mamba_causal():
+    mamba_model = MambaForCausalLM.from_pretrained(mamba_model_checkpoint)
+    return mamba_model
 
 def test_mamba_model():
     mamba_tokenizer = AutoTokenizer.from_pretrained("state-spaces/mamba-130m-hf")

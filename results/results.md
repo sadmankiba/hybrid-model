@@ -12,7 +12,7 @@ Hybrid GPT-Neo + Mamba 130m backbone-freezed fine-tuning
 
 ## IMDB Classification 
 
-**GPT-Neo Frozen**
+**GPT-Neo Pretrained Frozen**
 Epoch 1. Train size 20000. Batch size 1. LR 5e-5
 dev acc: 0.85
 
@@ -28,7 +28,7 @@ Epoch 0, Step 2000: dev acc: 0.62
 Epoch 0, Step 3000: dev acc: 0.68
 Epoch 0, Step 4000: dev acc: 0.58
 
-**Mamba**  
+**Mamba Pretrained Frozen**    
 Epoch = 1, lr = 5e-5, batch_size = 1, train_size 5000 eval_size 200.
 dev acc: 0.8
 
