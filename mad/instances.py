@@ -544,3 +544,53 @@ def generate_memorization_instance(
     inputs = np.concatenate(inputs).astype(int)
     targets = np.concatenate(targets).astype(int)
     return inputs, targets
+
+
+# compression:
+
+def generate_compression_instance(
+    vocab_size: int = 16,
+    seq_len: int = 32,
+    noise_vocab_size: int = 0,
+    frac_noise: float = 0,
+    rng: np.random.Generator = None,
+    target_ignore_idx: int = -100,
+    *args, **kwargs
+) -> tp.Tuple[np.array, np.array]:
+    """
+    Generate an instance of the compression task.
+    
+    Args:
+        vocab_size (int, optional): The size of the vocabulary.
+        seq_len (int, optional): The length of the generated sequence.
+        noise_vocab_size (int, optional): The size of the noise vocabulary (will be subtracted from vocab_size).
+        frac_noise (float, optional): The fraction of noise tokens in the sequence.
+        rng (np.random.Generator, optional): The random number generator to use if provided.
+        target_ignore_idx (int, optional): Index used in targets to indicate which entries to ignore.
+        
+    Returns:
+        tuple: Inputs and targets.    
+    """
+
+    if not exists(rng):
+        rng = np.random.default_rng()
+
+    # generate inputs/targets:
+    compression_token = vocab_size - 1
+    non_special_vocab_size = vocab_size - 1
+    non_special_vocab_size -= noise_vocab_size
+    vocab = np.arange(non_special_vocab_size)
+    inputs = rng.choice(vocab, size=(seq_len-1,), replace=True).reshape(-1)
+    inputs = np.concatenate([inputs, np.array([compression_token])])
+    targets = np.array(inputs)
+
+    # add noise:
+    if frac_noise > 0:
+        assert noise_vocab_size > 0, "noise vocab size must be > 0 if frac_noise > 0"
+        noise_vocab = np.arange(non_special_vocab_size, non_special_vocab_size+noise_vocab_size)
+        for i in range(seq_len-1): # exclude compression token
+            if rng.random() < frac_noise:
+                inputs[i:(i+1)] = rng.choice(noise_vocab)
+                targets[i:(i+1)] = target_ignore_idx
+
+    return inputs, targets
