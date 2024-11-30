@@ -1,3 +1,4 @@
+import os
 import typing as tp
 from typing import Optional
 
@@ -80,3 +81,20 @@ class MadDataset(torch.utils.data.Dataset):
         
         assert len(instances[-1]) == 2, "instance_fn must return a tuple of (input, target)"
         self.inputs, self.targets = [np.stack(i) for i in zip(*instances)]
+
+    
+    def save_data(self, path: str):
+        """
+        Save data to path.
+        
+        Args:
+            path (str): path to save data to.
+        """
+        assert self.inputs is not None
+        assert self.targets is not None
+        assert len(self.inputs) == len(self.targets)
+        if os.path.isdir(path):
+            print(f'WARNING: directory "{path}" exists already, overwriting...')
+        os.makedirs(path, exist_ok=True)
+        np.save(os.path.join(path, 'inputs.npy'), self.inputs)
+        np.save(os.path.join(path, 'targets.npy'), self.targets)

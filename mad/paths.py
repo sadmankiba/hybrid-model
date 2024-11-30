@@ -1,4 +1,5 @@
-
+import os
+from .registry import task_registry
 
 def is_num(v) -> bool:
     try:
@@ -68,4 +69,4 @@ def make_dataset_path(mad_config, **kwargs):
         path += f'{k}-{v}_'
     
     path = path[:-1] # exclude last '_"
-    return os.path.join(get_base_path(), mad_config.data_path, path)
+    return os.path.join(mad_config.data_path, path)

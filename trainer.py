@@ -1,19 +1,20 @@
-import time, random, numpy as np, argparse, sys, re, os
+import random
 import math
 from types import SimpleNamespace
-import torch.utils.data.dataset
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 import torch
+import torch.nn as nn
+import torch.optim as optim
 import torch.nn.functional as F
+import torch.utils.data.dataset
+import numpy as np
+from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader, random_split
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from sklearn.metrics import classification_report, f1_score, recall_score, accuracy_score
 
 from datasets import load_dataset
-# change it with respect to the original model
-from tqdm import tqdm
-import torch.nn as nn
-import torch.optim as optim
+from mad.gen_data import generate_data
 
 TQDM_DISABLE = False
 
@@ -192,6 +193,97 @@ class Trainer:
 
             print(f"epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}")
 
+    @staticmethod
+    def train_mad(model, config):
+        data = generate_data(
+            instance_fn=config.instance_fn,
+            instance_fn_kwargs=config.instance_fn_kwargs,
+            train_data_path=config.train_dataset_path,
+            test_data_path=config.test_dataset_path,
+            num_train_examples=config.num_train_examples,
+            num_test_examples=config.num_test_examples,
+        )
+        print("Generated data")
+        
+        # no padding. So, no attention_mask required.
+        train_dl = DataLoader(dataset=data['train'], batch_size=8, shuffle=True)
+        
+        test_dl = DataLoader(dataset=data['test'], batch_size=8, shuffle=False)
+        
+        optimizer = optim.Adam(model.parameters(), lr=1e-3)
+        for epoch in range(int(config.epochs)):
+            model.train()
+            train_loss = 0
+            for step, batch in enumerate(tqdm(train_dl, desc=f'train-{epoch}', disable=TQDM_DISABLE)):
+                inputs, targets = batch
+                inputs, targets = inputs.to(model.device), targets.to(model.device)
+                
+                optimizer.zero_grad()
+                output = model(input_ids=inputs)
+                loss = F.cross_entropy(output.logits.view(-1, 
+                            output.logits.size(-1)), targets.view(-1), ignore_index=-100)
+                loss.backward()
+                optimizer.step()
+                optimizer.zero_grad()
+                
+                train_loss += loss.item()
+                
+                if config.log_interval > 0 and step % config.log_interval == 0:
+                    print(f"epoch {epoch}, step {step}: train loss :: {loss.item() :.3f}")
+            
+            train_loss = train_loss / len(train_dl)
+            
+            eval_loss, eval_acc = Trainer.eval_mad(model, test_dl)
+             
+            print("epoch:", epoch, f"train loss: {train_loss:.3f}, eval loss: {eval_loss:.3f}, eval acc: {eval_acc:.3f}")
+       
+    @staticmethod 
+    def eval_mad(model, eval_dl):
+        model.eval()
+        test_loss = 0
+        total_correct = 0
+        total_items = 0
+        
+        print_samples = True
+        for step, batch in enumerate(eval_dl):
+            inputs, targets = batch
+            inputs, targets = inputs.to(model.device), targets.to(model.device)
+            with torch.no_grad():
+                output = model(input_ids=inputs)
+                loss = F.cross_entropy(output.logits.view(-1, 
+                            output.logits.size(-1)), targets.view(-1), ignore_index=-100)
+                test_loss += loss
+            
+            predicted = output.logits.argmax(dim=2)
+            if print_samples and step % 10 == 0:
+                print("inputs:", inputs)
+                print("targets:", targets)
+                print("predicted:", predicted)
+            
+            # output.logits shape: (batch_size, seq_len, vocab_size)    
+            valid_targets = (targets != -100)
+            correct = valid_targets & (targets == predicted)
+            total_correct += correct.sum().item()
+            total_items += valid_targets.sum().item()
+        
+        test_loss = test_loss / len(eval_dl)    
+        acc = total_correct / total_items
+        
+        return test_loss, acc
+
+    @staticmethod
+    def _shift_targets_right(targets):    
+        """
+        Add a dummy token at the beginning of targets, because they are 
+           shifted internally in HF model
+        
+        Args:
+            targets: tensor of shape (batch_size, seq_len)
+        """
+        dummy_token = torch.full((targets.size(0), 1), -100, dtype=targets.dtype, device=targets.device)
+        targets = torch.cat([dummy_token, targets], dim=1)
+        return targets
+    
     @staticmethod
     def save_model(model, optimizer, args, config, filepath):
         save_info = {

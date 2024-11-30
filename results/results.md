@@ -33,3 +33,12 @@ Epoch = 1, lr = 5e-5, batch_size = 1, train_size 5000 eval_size 200.
 dev acc: 0.8
 
 **Hybrid**  
+
+
+## MAD Tasks 
+
+```sh
+python3 main.py --run_mad  --task 'selective-copying' --vocab_size 16  --seq_len 20     --num_tokens_to_copy 5 --num_train_examples 4000 --num_test_examples 200     --num_layers 2 --hidden_size 32 --num_heads 2 --epochs 50 --batch_size 8     --log_interval 100 --lr 5e-4 --use_gpu
+```
+
+epoch: 5 train loss: 0.127, eval loss: 0.159, eval acc: 0.950

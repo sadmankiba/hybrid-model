@@ -3,15 +3,24 @@ import typing as tp
 from dataclasses import dataclass, fields
 
 import numpy as np 
+import torch.nn as nn
 
-from instances import generate_kv_map
-from paths import make_dataset_path
-from registry import task_registry
+from .instances import generate_kv_map
+from .paths import make_dataset_path
+from .registry import task_registry
 
+
+class BaseConfig:
+    def update_from_kwargs(self, kwargs):
+        """Update fields of the config with kwargs."""
+        valid_keys = {field.name for field in fields(self)}
+        for key, value in kwargs.items():
+            if key in valid_keys:
+                setattr(self, key, value)
 
 
 @dataclass
-class MADConfig:
+class MADConfig(BaseConfig):
     """MAD configuration."""
 
     # task settings:
@@ -32,7 +41,7 @@ class MADConfig:
 
     # training settings:
     batch_size: int = 128
-    epochs: int = 200
+    epochs: float = 200
     lr: float = 5e-4
     weight_decay: float = 0.
     optimizer: str = 'adamw'
@@ -40,6 +49,7 @@ class MADConfig:
     min_lr: float = 1e-6
     early_stop: bool = False
     precision: str = 'bf16'
+    log_interval: int = 0
 
     # misc:
     seed: int = 12345
@@ -77,6 +87,7 @@ class MADConfig:
             v_motif_size=self.v_motif_size,
             frac_noise=self.frac_noise,
             noise_vocab_size=self.noise_vocab_size,
+            num_tokens_to_copy=self.num_tokens_to_copy,
             rng=np.random.default_rng(self.seed),
             multi_query=self.multi_query,
             kv_map=kv_map
@@ -94,10 +105,17 @@ class MADConfig:
     def test_dataset_path(self) -> str:
         return os.path.join(self.dataset_path, 'test')
 
-   
-    def update_from_kwargs(self, kwargs):
-        """Update fields of the config with kwargs."""
-        valid_keys = {field.name for field in fields(self)}
-        for key, value in kwargs.items():
-            if key in valid_keys:
-                setattr(self, key, value)
+                
+@dataclass
+class ModelConfig(BaseConfig):
+    """Model configuration for models"""
+    vocab_size: int = 16
+    num_layers: int = 4
+    hidden_size: int = 128
+    num_heads: int = 4
+    backbone: str = 'language-model'
+    
+    max_length: int = 1_280
+    norm: nn.Module = nn.LayerNorm
+    position_embeds: tp.Callable = None
+    embed_drop_rate: float = 0.0

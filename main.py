@@ -1,7 +1,5 @@
 import argparse
-from typing import NamedTuple
 
-import torch
 from trainer import Trainer
 from mamba.mamba_lmhead import MambaTextClassification
 from hybrid.hybrid_model import HybridModelTextClassification
@@ -9,6 +7,7 @@ from hybrid.model_zoo import (
     get_mamba_causal, 
     get_gpt_neo_causal,
 )
+from mad.configs import MADConfig, ModelConfig
 
 from transformers import ( 
     AutoConfig,
@@ -20,6 +19,19 @@ from transformers import (
 gpt_neo_model_checkpoint = "EleutherAI/gpt-neo-125M"
 mamba_model_checkpoint = "state-spaces/mamba-130m-hf"
 
+def get_gpt_neo_causal_initd(model_config):
+    tokenizer = AutoTokenizer.from_pretrained(gpt_neo_model_checkpoint)
+    tokenizer.pad_token = tokenizer.eos_token
+
+    config = AutoConfig.from_pretrained(gpt_neo_model_checkpoint, 
+        vocab_size=model_config.vocab_size,
+        num_layers=model_config.num_layers, 
+        hidden_size=model_config.hidden_size, 
+        num_heads=model_config.num_heads,
+        pad_token_id=tokenizer.pad_token_id
+    )
+    model = AutoModelForCausalLM.from_config(config)
+    return model
 
 # Train a transformer model with Trainer 
 def train_gpt_neo_pretrained(args):
@@ -74,16 +86,12 @@ def train_gpt_neo_initd(args):
             num_labels=args.num_labels, id2label=id2label, label2id=label2id
     )
     model = AutoModelForSequenceClassification.from_config(config)
-    
     print("model:", model)
-    
-    for param in model.transformer.parameters():
-        param.requires_grad = False
 
     dataset_name = "imdb"
-    param_list = model.score.parameters()
-
+    param_list = model.parameters()
     Trainer.train(model, model_name, dataset_name, param_list, args)
+
 
 def train_mamba_initd(args):
     tokenizer_name = mamba_model_checkpoint
@@ -122,8 +130,18 @@ def train_hybrid(args):
     param_list = model.parameters() # TODO: Confirm it works
     Trainer.train(model, gpt_neo_tokenizer_id, dataset_name, param_list, args)
     
+def train_mad():
+    mad_config = MADConfig()
+    mad_config.update_from_kwargs(vars(args))
+    model_config = ModelConfig()
+    model_config.update_from_kwargs(vars(args))
+    print("mad_config:", mad_config)
+    print("model_config:", model_config)
+    
+    model = get_gpt_neo_causal_initd(model_config)
+    Trainer.train_mad(model=model, config=mad_config)
 
-if __name__ == "__main__":
+def parse_args():
     parser = argparse.ArgumentParser(description="Train a transformer model with Trainer")
     # Training
     parser.add_argument("--epochs", type=float, default=5, help="Number of training epochs")
@@ -142,17 +160,44 @@ if __name__ == "__main__":
     parser.add_argument("--run_hybrid", action="store_true", help="Run the Hybrid model")
     parser.add_argument("--run_gpt_neo_initd", action="store_true", help="Run the GPT-Neo model")
     parser.add_argument("--run_mamba_initd", action="store_true", help="Run the Mamba model")
+    parser.add_argument("--run_mad", action="store_true", help="Run the MAD tasks")
     
     # Initialized models
     parser.add_argument("--num_layers", type=int, default=12, help="Number of layers for the model")
     parser.add_argument("--hidden_size", type=int, default=768, help="Hidden size for the model")
     parser.add_argument("--num_heads", type=int, default=12, help="Number of heads for the model")
     
+    # MAD Tasks
+    parser.add_argument('--task', type=str, default='in-context-recall')
+    parser.add_argument('--vocab_size', type=int, default=16)
+    parser.add_argument('--seq_len', type=int, default=128)
+    parser.add_argument('--frac_noise', type=float, default=0.0)
+    parser.add_argument('--noise_vocab_size', type=int, default=0)
+    parser.add_argument('--num_tokens_to_copy', type=int, default=0)
+    parser.add_argument('--k_motif_size', type=int, default=1)
+    parser.add_argument('--v_motif_size', type=int, default=1)
+    parser.add_argument('--multi_query', type=bool, default=True)
+    parser.add_argument('--num_train_examples', type=int, default=12_800)
+    parser.add_argument('--num_test_examples', type=int, default=1_280)
+    parser.add_argument('--data_path', type=str, default='./data')
+    parser.add_argument('--optimizer', type=str, default='adamw')
+    parser.add_argument('--scheduler', type=str, default='cosine')
+    parser.add_argument('--min_lr', type=float, default=1e-6)
+    parser.add_argument('--early_stop', type=bool, default=False)
+    parser.add_argument('--precision', type=str, default='bf16')
+    parser.add_argument('--seed', type=int, default=12345)
+    parser.add_argument('--target_ignore_index', type=int, default=-100)
+    
     args = parser.parse_args()
     args.num_labels = 2
     args.hidden_dropout_prob = 0.1
     args.option = None
     
+    return args
+
+
+if __name__ == "__main__":
+    args = parse_args() 
     print("args:", args)
     
     if args.run_trans:
@@ -169,3 +214,6 @@ if __name__ == "__main__":
         
     if args.run_mamba_initd:
         train_mamba_initd(args)
+        
+    if args.run_mad:
+        train_mad()

@@ -1,4 +1,4 @@
-from instances import (
+from .instances import (
     generate_in_context_recall_instance,
     generate_noisy_in_context_recall_instance,
     generate_fuzzy_in_context_recall_instance,
