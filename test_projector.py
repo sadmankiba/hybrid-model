@@ -1,7 +1,8 @@
 import torch
 
-from hybrid.projector import Combiner, Splitter
+from hybrid.projector import Combiner, Splitter, NullCombiner, NullSplitter
 from utils.params import count_parameters
+
 
 def test_combiner_param_count():
     combiner = Combiner(10, 20)
@@ -39,3 +40,26 @@ def test_splitter_forward():
     
     torch.isclose(out1, x[:, :, :10], atol=1e-6)
     torch.isclose(out2, x, atol=1e-6)
+
+
+def test_null_combiner_forward():
+    null_combiner = NullCombiner(10, 20)
+    x1 = torch.randn(5, 8, 10) # (batch_size, seq_len, input_dim)
+    x2 = torch.randn(5, 8, 20)
+    output = null_combiner(x1, x2)
+    assert output.shape == (5, 8, 20)
+    
+    x1_padded = torch.cat([x1, torch.zeros((5, 8, 10))], dim=2)
+    expected_output = (x1_padded + x2) / 2
+    assert torch.allclose(output, expected_output, atol=1e-6)
+
+
+def test_null_splitter_forward():
+    null_splitter = NullSplitter(10, 20)
+    x = torch.randn(5, 8, 20)
+    out1, out2 = null_splitter(x)
+    assert out1.shape == (5, 8, 10)
+    assert out2.shape == (5, 8, 20)
+    
+    assert torch.allclose(out1, x[:, :, :10], atol=1e-6)
+    assert torch.allclose(out2, x, atol=1e-6)

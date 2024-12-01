@@ -150,8 +150,9 @@ def get_hybrid_causal_initd(model_config):
     trans_model = get_gpt_neo_causal_initd(model_config)
     mamba_model = get_mamba_causal_initd(model_config)
     
-    num_blocks = 1
-    assert model_config.num_layers % num_blocks == 0
+    num_blocks = model_config.num_hybrid_blocks
+    assert model_config.num_trans_layers % num_blocks == 0
+    assert model_config.num_mamba_layers % num_blocks == 0
     model = HybridModel(trans_model, mamba_model, num_blocks)
     print("model:", model)
     
@@ -205,7 +206,7 @@ def parse_args():
     parser.add_argument("--num_heads", type=int, default=12, help="Number of heads for the model")
     
     # Hybrid model
-    parser.add_argument("--num_blocks", type=int, default=1, help="Number of hybrid model blocks")
+    parser.add_argument("--num_hybrid_blocks", type=int, default=1, help="Number of hybrid model blocks")
     
     # MAD Tasks
     parser.add_argument('--task', type=str, default='in-context-recall')

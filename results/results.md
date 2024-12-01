@@ -46,8 +46,9 @@ dev acc: 0.8
 Transformer: epoch: 5 train loss: 0.127, eval loss: 0.159, eval acc: 0.950
 
 Mamba: epoch: 2 train loss: 0.025, eval loss: 0.004, eval acc: 1.000
-Hybrid (num blocks 1): epoch: 2 train loss: 0.046, eval loss: 0.010, eval acc: 0.998
-
+Hybrid (num blocks 1, Gated-residual projectors, trans layers 2, mamba layers 2): epoch: 2 train loss: 0.046, eval loss: 0.010, eval acc: 0.998
+Hybrid (num blocks 1, Null projectors, trans layers 2, mamba layers 2): epoch: 1 train loss: 0.061, eval loss: 0.056, eval acc: 0.989
+Hybrid (num blocks 2, Null projectors, trans layers 2, mamba layers 2): epoch: 1 train loss: 0.098, eval loss: 0.055, eval acc: 0.984
 
 ### In-context Recall 
 

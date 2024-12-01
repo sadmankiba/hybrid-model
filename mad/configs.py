@@ -114,6 +114,7 @@ class ModelConfig(BaseConfig):
     num_layers: int = 4
     num_trans_layers: int = 4
     num_mamba_layers: int = 4
+    num_hybrid_blocks: int = 4
     hidden_size: int = 128
     num_heads: int = 4
     backbone: str = 'language-model'
