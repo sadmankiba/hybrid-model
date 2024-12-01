@@ -19,22 +19,9 @@ from transformers import (
 gpt_neo_model_checkpoint = "EleutherAI/gpt-neo-125M"
 mamba_model_checkpoint = "state-spaces/mamba-130m-hf"
 
-def get_gpt_neo_causal_initd(model_config):
-    tokenizer = AutoTokenizer.from_pretrained(gpt_neo_model_checkpoint)
-    tokenizer.pad_token = tokenizer.eos_token
-
-    config = AutoConfig.from_pretrained(gpt_neo_model_checkpoint, 
-        vocab_size=model_config.vocab_size,
-        num_layers=model_config.num_layers, 
-        hidden_size=model_config.hidden_size, 
-        num_heads=model_config.num_heads,
-        pad_token_id=tokenizer.pad_token_id
-    )
-    model = AutoModelForCausalLM.from_config(config)
-    return model
-
-# Train a transformer model with Trainer 
-def train_gpt_neo_pretrained(args):
+#### Train Pretrained models on Seqclass ####
+ 
+def train_gpt_neo_seqclass_pretrained(args):
     model_name = gpt_neo_model_checkpoint
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     tokenizer.pad_token = tokenizer.eos_token
@@ -55,7 +42,7 @@ def train_gpt_neo_pretrained(args):
 
     Trainer.train(model, model_name, dataset_name, param_list, args)
 
-def train_mamba_pretrained(args):
+def train_mamba_seqclass_pretrained(args):
     tokenizer_name = mamba_model_checkpoint
     
     model = MambaTextClassification(tokenizer_name, 
@@ -70,7 +57,27 @@ def train_mamba_pretrained(args):
     param_list = model.parameters()
     Trainer.train(model, tokenizer_name, dataset_name, param_list, args)
 
-def train_gpt_neo_initd(args):
+def train_hybrid_seqclass_pretrained(args):
+    gpt_neo_tokenizer_id = 'EleutherAI/gpt-neo-125M'
+    trans_model = get_gpt_neo_causal()
+    mamba_model = get_mamba_causal()
+    
+    model = HybridModelTextClassification(trans_model, mamba_model, 2)
+    print("model:", model)
+    for param in model.hybrid_model.trans_model.parameters():
+        param.requires_grad = False
+        
+    for param in model.hybrid_model.mamba_model.parameters():
+        param.requires_grad = False
+    
+    
+    dataset_name = "imdb"
+    param_list = model.parameters() # TODO: Confirm it works
+    Trainer.train(model, gpt_neo_tokenizer_id, dataset_name, param_list, args)
+
+#### Train Initialized models on Seqclass ####
+
+def train_gpt_neo_seqclass_initd(args):
     model_name = gpt_neo_model_checkpoint
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     tokenizer.pad_token = tokenizer.eos_token
@@ -93,7 +100,7 @@ def train_gpt_neo_initd(args):
     Trainer.train(model, model_name, dataset_name, param_list, args)
 
 
-def train_mamba_initd(args):
+def train_mamba_seqclass_initd(args):
     tokenizer_name = mamba_model_checkpoint
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
     tokenizer.pad_token = tokenizer.eos_token
@@ -112,25 +119,38 @@ def train_mamba_initd(args):
     param_list = model.parameters()
     Trainer.train(model, tokenizer_name, dataset_name, param_list, args)
 
-def train_hybrid(args):
-    gpt_neo_tokenizer_id = 'EleutherAI/gpt-neo-125M'
-    trans_model = get_gpt_neo_causal()
-    mamba_model = get_mamba_causal()
+### Train Initialized models on MAD Tasks ###
+
+def get_gpt_neo_causal_initd(model_config):
+    tokenizer = AutoTokenizer.from_pretrained(gpt_neo_model_checkpoint)
+    tokenizer.pad_token = tokenizer.eos_token
+
+    config = AutoConfig.from_pretrained(gpt_neo_model_checkpoint, 
+        vocab_size=model_config.vocab_size,
+        num_layers=model_config.num_layers, 
+        hidden_size=model_config.hidden_size, 
+        num_heads=model_config.num_heads,
+        pad_token_id=tokenizer.pad_token_id
+    )
+    model = AutoModelForCausalLM.from_config(config)
+    return model
+
+
+def get_mamba_causal_initd(model_config):
+    tokenizer = AutoTokenizer.from_pretrained(mamba_model_checkpoint)
+    tokenizer.pad_token = tokenizer.eos_token
     
-    model = HybridModelTextClassification(trans_model, mamba_model, 2)
-    print("model:", model)
-    for param in model.hybrid_model.trans_model.parameters():
-        param.requires_grad = False
-        
-    for param in model.hybrid_model.mamba_model.parameters():
-        param.requires_grad = False
-    
-    
-    dataset_name = "imdb"
-    param_list = model.parameters() # TODO: Confirm it works
-    Trainer.train(model, gpt_neo_tokenizer_id, dataset_name, param_list, args)
-    
-def train_mad():
+    config = AutoConfig.from_pretrained(mamba_model_checkpoint,
+            num_hidden_layers=model_config.num_layers, 
+            hidden_size=model_config.hidden_size, 
+            pad_token_id=tokenizer.pad_token_id, 
+            output_hidden_states=True
+    )
+    model = AutoModelForCausalLM.from_config(config)
+    return model
+
+
+def train_mad(model_type: str):
     mad_config = MADConfig()
     mad_config.update_from_kwargs(vars(args))
     model_config = ModelConfig()
@@ -138,7 +158,13 @@ def train_mad():
     print("mad_config:", mad_config)
     print("model_config:", model_config)
     
-    model = get_gpt_neo_causal_initd(model_config)
+    if model_type == "transformers":
+        model = get_gpt_neo_causal_initd(model_config)
+    elif model_type == "mamba":
+        model = get_mamba_causal_initd(model_config)
+    elif model_type == "hybrid":
+        model = HybridModelTextClassification(get_gpt_neo_causal(), get_mamba_causal(), model_config.num_labels)
+    
     Trainer.train_mad(model=model, config=mad_config)
 
 def parse_args():
@@ -160,7 +186,9 @@ def parse_args():
     parser.add_argument("--run_hybrid", action="store_true", help="Run the Hybrid model")
     parser.add_argument("--run_gpt_neo_initd", action="store_true", help="Run the GPT-Neo model")
     parser.add_argument("--run_mamba_initd", action="store_true", help="Run the Mamba model")
-    parser.add_argument("--run_mad", action="store_true", help="Run the MAD tasks")
+    parser.add_argument("--run_mad_trans", action="store_true", help="Run the MAD tasks with Transformers")
+    parser.add_argument("--run_mad_mamba", action="store_true", help="Run the MAD tasks with Mamba")
+    parser.add_argument("--run_mad_hybrid", action="store_true", help="Run the MAD tasks with Hybrid model")
     
     # Initialized models
     parser.add_argument("--num_layers", type=int, default=12, help="Number of layers for the model")
@@ -201,19 +229,25 @@ if __name__ == "__main__":
     print("args:", args)
     
     if args.run_trans:
-        train_gpt_neo_pretrained(args)
+        train_gpt_neo_seqclass_pretrained(args)
     
     if args.run_mamba:
-        train_mamba_pretrained(args)
+        train_mamba_seqclass_pretrained(args)
         
     if args.run_hybrid:
-        train_hybrid(args)
+        train_hybrid_seqclass_pretrained(args)
         
     if args.run_gpt_neo_initd:
-        train_gpt_neo_initd(args)
+        train_gpt_neo_seqclass_initd(args)
         
     if args.run_mamba_initd:
-        train_mamba_initd(args)
+        train_mamba_seqclass_initd(args)
         
-    if args.run_mad:
-        train_mad()
+    if args.run_mad_trans:
+        train_mad("transformers")
+    
+    if args.run_mad_mamba:
+        train_mad("mamba")
+    
+    if args.run_mad_hybrid:
+        train_mad("hybrid")
