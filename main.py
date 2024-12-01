@@ -89,7 +89,7 @@ def train_gpt_neo_seqclass_initd(args):
             num_layers=args.num_layers, 
             hidden_size=args.hidden_size, 
             num_heads=args.num_heads,
-            pad_token_id=tokenizer.pad_token_id, 
+            pad_token_id=tokenizer.pad_token_id, # 50256 for GPT-Neo tokenizer
             num_labels=args.num_labels, id2label=id2label, label2id=label2id
     )
     model = AutoModelForSequenceClassification.from_config(config)
@@ -122,32 +122,30 @@ def train_mamba_seqclass_initd(args):
 ### Train Initialized models on MAD Tasks ###
 
 def get_gpt_neo_causal_initd(model_config):
-    tokenizer = AutoTokenizer.from_pretrained(gpt_neo_model_checkpoint)
-    tokenizer.pad_token = tokenizer.eos_token
-
     config = AutoConfig.from_pretrained(gpt_neo_model_checkpoint, 
         vocab_size=model_config.vocab_size,
         num_layers=model_config.num_layers, 
         hidden_size=model_config.hidden_size, 
         num_heads=model_config.num_heads,
-        pad_token_id=tokenizer.pad_token_id
+        pad_token_id=0
     )
     model = AutoModelForCausalLM.from_config(config)
     return model
 
 
 def get_mamba_causal_initd(model_config):
-    tokenizer = AutoTokenizer.from_pretrained(mamba_model_checkpoint)
-    tokenizer.pad_token = tokenizer.eos_token
-    
     config = AutoConfig.from_pretrained(mamba_model_checkpoint,
+            vocab_size=model_config.vocab_size,
             num_hidden_layers=model_config.num_layers, 
             hidden_size=model_config.hidden_size, 
-            pad_token_id=tokenizer.pad_token_id, 
+            pad_token_id=0, # eos_token_id from Mamba tokenizer
             output_hidden_states=True
     )
     model = AutoModelForCausalLM.from_config(config)
     return model
+
+def get_hybrid_causal_initd(model_config):
+    pass
 
 
 def train_mad(model_type: str):

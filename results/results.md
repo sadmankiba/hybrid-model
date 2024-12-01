@@ -42,3 +42,9 @@ python3 main.py --run_mad  --task 'selective-copying' --vocab_size 16  --seq_len
 ```
 
 epoch: 5 train loss: 0.127, eval loss: 0.159, eval acc: 0.950
+
+```sh
+python3 main.py --run_mad_mamba  --task 'selective-copying' --vocab_size 16  --seq_len 20     --num_tokens_to_copy 5 --num_train_examples 4000 --num_test_examples 200     --num_layers 2 --hidden_size 32 --epochs 10 --batch_size 8     --log_interval 100 --lr 5e-4 --use_gpu
+```
+
+epoch: 2 train loss: 0.025, eval loss: 0.004, eval acc: 1.000

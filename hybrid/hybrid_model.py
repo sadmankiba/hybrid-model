@@ -28,7 +28,8 @@ class HybridModel(torch.nn.Module):
         self.combiners = torch.nn.ModuleList([Combiner(dim1, dim2) for _ in range(n_hybrid_blocks)])
         self.splitters = torch.nn.ModuleList([Splitter(dim1, dim2) for _ in range(n_hybrid_blocks)])
         self.proj_dim = max(dim1, dim2)
-        self.hybrid_lm_head = torch.nn.Linear(self.proj_dim, self.trans_model.lm_head.out_features)
+        self.hybrid_lm_head = self.trans_model.lm_head
+
 
     def forward(self, input_ids, attention_mask=None):
         """
