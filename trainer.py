@@ -195,6 +195,7 @@ class Trainer:
 
     @staticmethod
     def train_mad(model, config):
+        device = torch.device('cuda') if config.use_gpu else torch.device('cpu')
         data = generate_data(
             instance_fn=config.instance_fn,
             instance_fn_kwargs=config.instance_fn_kwargs,
@@ -206,10 +207,10 @@ class Trainer:
         print("Generated data")
         
         # no padding. So, no attention_mask required.
-        train_dl = DataLoader(dataset=data['train'], batch_size=8, shuffle=True)
+        train_dl = DataLoader(dataset=data['train'], batch_size=config.batch_size, shuffle=True)
+        test_dl = DataLoader(dataset=data['test'], batch_size=config.batch_size, shuffle=False)
         
-        test_dl = DataLoader(dataset=data['test'], batch_size=8, shuffle=False)
-        
+        model = model.to(device)
         optimizer = optim.Adam(model.parameters(), lr=1e-3)
         for epoch in range(int(config.epochs)):
             model.train()

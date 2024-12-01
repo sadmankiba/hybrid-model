@@ -1,8 +1,10 @@
 import argparse
 
+import torch
+
 from trainer import Trainer
 from mamba.mamba_lmhead import MambaTextClassification
-from hybrid.hybrid_model import HybridModelTextClassification
+from hybrid.hybrid_model import HybridModelTextClassification, HybridModel
 from hybrid.model_zoo import (
     get_mamba_causal, 
     get_gpt_neo_causal,
@@ -124,7 +126,7 @@ def train_mamba_seqclass_initd(args):
 def get_gpt_neo_causal_initd(model_config):
     config = AutoConfig.from_pretrained(gpt_neo_model_checkpoint, 
         vocab_size=model_config.vocab_size,
-        num_layers=model_config.num_layers, 
+        num_layers=model_config.num_trans_layers, 
         hidden_size=model_config.hidden_size, 
         num_heads=model_config.num_heads,
         pad_token_id=0
@@ -136,7 +138,7 @@ def get_gpt_neo_causal_initd(model_config):
 def get_mamba_causal_initd(model_config):
     config = AutoConfig.from_pretrained(mamba_model_checkpoint,
             vocab_size=model_config.vocab_size,
-            num_hidden_layers=model_config.num_layers, 
+            num_hidden_layers=model_config.num_mamba_layers, 
             hidden_size=model_config.hidden_size, 
             pad_token_id=0, # eos_token_id from Mamba tokenizer
             output_hidden_states=True
@@ -145,7 +147,15 @@ def get_mamba_causal_initd(model_config):
     return model
 
 def get_hybrid_causal_initd(model_config):
-    pass
+    trans_model = get_gpt_neo_causal_initd(model_config)
+    mamba_model = get_mamba_causal_initd(model_config)
+    
+    num_blocks = 1
+    assert model_config.num_layers % num_blocks == 0
+    model = HybridModel(trans_model, mamba_model, num_blocks)
+    print("model:", model)
+    
+    return model
 
 
 def train_mad(model_type: str):
@@ -161,7 +171,7 @@ def train_mad(model_type: str):
     elif model_type == "mamba":
         model = get_mamba_causal_initd(model_config)
     elif model_type == "hybrid":
-        model = HybridModelTextClassification(get_gpt_neo_causal(), get_mamba_causal(), model_config.num_labels)
+        model = get_hybrid_causal_initd(model_config)
     
     Trainer.train_mad(model=model, config=mad_config)
 
@@ -176,7 +186,6 @@ def parse_args():
     parser.add_argument("--log_interval", type=int, default=0, help="Log training loss every n steps")
     parser.add_argument("--train_size", type=int, default=0, help="Number of training examples")
     parser.add_argument("--eval_size", type=int, default=0, help="Number of dev examples")
-    parser.add_argument("--use_gpu", action="store_true", help="Whether to use GPU for training")
     
     # Which models to run 
     parser.add_argument("--run_trans", action="store_true", help="Run the transformers model")
@@ -190,8 +199,13 @@ def parse_args():
     
     # Initialized models
     parser.add_argument("--num_layers", type=int, default=12, help="Number of layers for the model")
+    parser.add_argument("--num_trans_layers", type=int, default=12, help="Number of transformer layers for the model")
+    parser.add_argument("--num_mamba_layers", type=int, default=12, help="Number of mamba layers for the model")
     parser.add_argument("--hidden_size", type=int, default=768, help="Hidden size for the model")
     parser.add_argument("--num_heads", type=int, default=12, help="Number of heads for the model")
+    
+    # Hybrid model
+    parser.add_argument("--num_blocks", type=int, default=1, help="Number of hybrid model blocks")
     
     # MAD Tasks
     parser.add_argument('--task', type=str, default='in-context-recall')
@@ -218,6 +232,7 @@ def parse_args():
     args.num_labels = 2
     args.hidden_dropout_prob = 0.1
     args.option = None
+    args.use_gpu = torch.cuda.is_available() 
     
     return args
 

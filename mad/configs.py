@@ -50,6 +50,7 @@ class MADConfig(BaseConfig):
     early_stop: bool = False
     precision: str = 'bf16'
     log_interval: int = 0
+    use_gpu: bool = False
 
     # misc:
     seed: int = 12345
@@ -111,6 +112,8 @@ class ModelConfig(BaseConfig):
     """Model configuration for models"""
     vocab_size: int = 16
     num_layers: int = 4
+    num_trans_layers: int = 4
+    num_mamba_layers: int = 4
     hidden_size: int = 128
     num_heads: int = 4
     backbone: str = 'language-model'

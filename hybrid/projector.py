@@ -22,23 +22,21 @@ class Combiner(nn.Module):
     def forward(self, x1, x2):
         """
         Args:
-            x1 (torch.Tensor): The output tensor from the first model block. Shape (batch_size, input_dim1)
-            x2 (torch.Tensor): The output tensor from the second model block. Shape (batch_size, input_dim2)
+            x1 (torch.Tensor): The output tensor from the first model block. Shape (batch_size, seq_len, input_dim1)
+            x2 (torch.Tensor): The output tensor from the second model block. Shape (batch_size, seq_len, input_dim2)
         """
-        assert len(x1.shape) == 2 and len(x2.shape) == 2
-        
         proj_dim = self.in_proj1.weight.shape[0] # weight.shape = (proj_dim, input_dim1)
         
         x1_proj = self.in_proj1(x1)
         x2_proj = self.in_proj2(x2)
         
-        if x1.shape[1] < proj_dim:
-            padding = torch.zeros((x1.shape[0], proj_dim - x1.shape[1]), device=x1.device)
-            x1 = torch.cat([x1, padding], dim=1)
+        if x1.shape[2] < proj_dim:
+            padding = torch.zeros((x1.shape[0], x1.shape[1], proj_dim - x1.shape[2]), device=x1.device)
+            x1 = torch.cat([x1, padding], dim=2)
             
-        if x2.shape[1] < proj_dim:
-            padding = torch.zeros((x2.shape[0], proj_dim - x2.shape[1]), device=x2.device)
-            x2 = torch.cat([x2, padding], dim=1)
+        if x2.shape[2] < proj_dim:
+            padding = torch.zeros((x2.shape[0], x2.shape[1], proj_dim - x2.shape[2]), device=x2.device)
+            x2 = torch.cat([x2, padding], dim=2)
         
         x1_proj_out = (1 - self.alpha1) * x1_proj + self.alpha1 * x1
         x2_proj_out = (1 - self.alpha2) * x2_proj + self.alpha2 * x2
@@ -63,9 +61,12 @@ class Splitter(nn.Module):
         self.out_proj2 = nn.Linear(proj_dim, input_dim2)
     
     def forward(self, x):
-        assert len(x.shape) == 2
+        """
+        Args:
+            x (torch.Tensor): The output tensor from the combiner. Shape (batch_size, seq_len, proj_dim)
+        """
         input_dim1 = self.out_proj1.weight.shape[0] # weight.shape = (input_dim1, proj_dim)
         input_dim2 = self.out_proj2.weight.shape[0]
-        proj1_out = (1 - self.alpha1) * self.out_proj1(x) * self.alpha1 * x[:, :input_dim1] 
-        proj2_out = (1 - self.alpha2) * self.out_proj2(x) * self.alpha2 * x[:, :input_dim2]
+        proj1_out = (1 - self.alpha1) * self.out_proj1(x) * self.alpha1 * x[:, :, :input_dim1] 
+        proj2_out = (1 - self.alpha2) * self.out_proj2(x) * self.alpha2 * x[:, :, :input_dim2]
         return proj1_out, proj2_out

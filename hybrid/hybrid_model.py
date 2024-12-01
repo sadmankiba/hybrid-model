@@ -31,6 +31,12 @@ class HybridModel(torch.nn.Module):
         self.hybrid_lm_head = self.trans_model.lm_head
 
 
+    @property 
+    def device(self):
+        model_device = next(self.parameters()).device
+        return model_device
+
+
     def forward(self, input_ids, attention_mask=None):
         """
         Args:

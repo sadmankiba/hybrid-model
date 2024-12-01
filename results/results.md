@@ -37,14 +37,28 @@ dev acc: 0.8
 
 ## MAD Tasks 
 
-```sh
-python3 main.py --run_mad  --task 'selective-copying' --vocab_size 16  --seq_len 20     --num_tokens_to_copy 5 --num_train_examples 4000 --num_test_examples 200     --num_layers 2 --hidden_size 32 --num_heads 2 --epochs 50 --batch_size 8     --log_interval 100 --lr 5e-4 --use_gpu
-```
-
-epoch: 5 train loss: 0.127, eval loss: 0.159, eval acc: 0.950
+### Selective Copying
 
 ```sh
-python3 main.py --run_mad_mamba  --task 'selective-copying' --vocab_size 16  --seq_len 20     --num_tokens_to_copy 5 --num_train_examples 4000 --num_test_examples 200     --num_layers 2 --hidden_size 32 --epochs 10 --batch_size 8     --log_interval 100 --lr 5e-4 --use_gpu
+--vocab_size 16  --seq_len 20     --num_tokens_to_copy 5 --num_train_examples 4000 --num_test_examples 200     --num_layers 2 --hidden_size 32 --num_heads 2 --epochs 50 --batch_size 8  --lr 5e-4 
 ```
 
-epoch: 2 train loss: 0.025, eval loss: 0.004, eval acc: 1.000
+Transformer: epoch: 5 train loss: 0.127, eval loss: 0.159, eval acc: 0.950
+
+Mamba: epoch: 2 train loss: 0.025, eval loss: 0.004, eval acc: 1.000
+Hybrid (num blocks 1): epoch: 2 train loss: 0.046, eval loss: 0.010, eval acc: 0.998
+
+
+### In-context Recall 
+
+```sh
+--vocab_size 16  --seq_len 64 --num_train_examples 4096 --num_test_examples 256 --hidden_size 128 --num_heads 16 --epochs 20 --batch_size 32 --log_interval 20 --lr 5e-4
+```
+
+Transformers: num_layers 2, seq_len 64
+Mamba : num_layers 4, seq_len 64
+Hybrid: num_blocks 1, num_trans_layers 2, num_mamba_layers 2, seq_len 16
+
+Transformers: epoch: 19 train loss: 1.510, eval loss: 0.589, eval acc: 0.757
+Mamba: epoch: 1 train loss: 1.337, eval loss: 0.002, eval acc: 1.000
+Hybrid: epoch: 19 train loss: 1.539, eval loss: 0.126, eval acc: 0.968
