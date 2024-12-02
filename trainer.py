@@ -1,5 +1,6 @@
 import random
 import math
+from collections import namedtuple
 from types import SimpleNamespace
 
 import torch
@@ -212,6 +213,12 @@ class Trainer:
         
         model = model.to(device)
         optimizer = optim.Adam(model.parameters(), lr=1e-3)
+        best_eval_loss = float('inf')
+        best_eval_loss_margin = 0.001
+        best_eval_loss_epoch = 0
+        best_eval_acc = 0
+        best_eval_acc_margin = 0.005
+        best_eval_acc_epoch = 0
         for epoch in range(int(config.epochs)):
             model.train()
             train_loss = 0
@@ -237,6 +244,18 @@ class Trainer:
             eval_loss, eval_acc = Trainer.eval_mad(model, test_dl)
              
             print("epoch:", epoch + 1, f"train loss: {train_loss:.3f}, eval loss: {eval_loss:.3f}, eval acc: {eval_acc:.3f}")
+            
+            if eval_loss < best_eval_loss - best_eval_loss_margin:
+                best_eval_loss = eval_loss
+                best_eval_loss_epoch = epoch
+            
+            if eval_acc > best_eval_acc + best_eval_acc_margin:
+                best_eval_acc = eval_acc
+                best_eval_acc_epoch = epoch
+            
+        Results = namedtuple("Results", ["best_eval_loss", "best_eval_loss_epoch", "best_eval_acc", "best_eval_acc_epoch"])
+        return Results(best_eval_loss=best_eval_loss, best_eval_loss_epoch=best_eval_loss_epoch,
+                          best_eval_acc=best_eval_acc, best_eval_acc_epoch=best_eval_acc_epoch)
        
     @staticmethod 
     def eval_mad(model, eval_dl):

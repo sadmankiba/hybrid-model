@@ -58,6 +58,7 @@ Epoch is 1-indexed.
 | Hybrid     | blocks 1, Gated-res-soft tLrs 2 mLrs 2 | 2 | 0.044 | 0.023 | 0.993 | 
 | Hybrid     | blocks 2, Gated-res-soft tLrs 2 mLrs 2 | 5 | 0.101 | 0.076 | 0.967 | 
 | Hybrid     | blocks 1, Gated-res-soft tLrs 1 mLrs 1 | 10 | 0.742 | 0.765 | 0.732 |
+| MambaFormer| tLrs 2 mLrs 3 | 6 | 0.121 | 0.062 | 0.987 |
 
 
 
@@ -80,7 +81,7 @@ Epoch is 1-indexed.
 ```
 
 | Model      | Parameters       | Epoch  | Train loss | Eval loss | Eval acc |
-| Transformer| layers 2, batch 32 | 20   | 1.96       | 1.58      |  0.34    | 
+| Transformer| layers 2 | 20   | 1.96       | 1.58      |  0.34    | 
 | Mamba      | layers 2 | 2 | 1.67  | 0.20   | 1.00|
-| Hybrid     | blocks 1, Gated-res tLrs 2 mLrs 2, seq 32 | 3 | 1.566 | 0.005 | 1.000 |
-| MambaFormer| 
+| Hybrid     | blocks 1, Gated-res tLrs 2 mLrs 2 | 3 | 1.566 | 0.005 | 1.000 |
+| MambaFormer| tLrs 2 mLrs 3 | 20  | 1.84 | 1.19 | 0.516 | 

@@ -185,7 +185,8 @@ def train_mad(model_type: str):
     elif model_type == "mamform":
         model = get_mambaformer_initd(model_config)
     
-    Trainer.train_mad(model=model, config=mad_config)
+    results = Trainer.train_mad(model=model, config=mad_config)
+    return results
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Train a transformer model with Trainer")
@@ -198,6 +199,7 @@ def parse_args():
     parser.add_argument("--log_interval", type=int, default=0, help="Log training loss every n steps")
     parser.add_argument("--train_size", type=int, default=0, help="Number of training examples")
     parser.add_argument("--eval_size", type=int, default=0, help="Number of dev examples")
+    parser.add_argument("--output_file", type=str, default="results.txt", help="File to save results")
     
     # Which models to run 
     parser.add_argument("--run_trans", action="store_true", help="Run the transformers model")
@@ -255,6 +257,7 @@ if __name__ == "__main__":
     args = parse_args() 
     print("args:", args)
     
+    results = None
     if args.run_trans:
         train_gpt_neo_seqclass_pretrained(args)
     
@@ -271,13 +274,17 @@ if __name__ == "__main__":
         train_mamba_seqclass_initd(args)
         
     if args.run_mad_trans:
-        train_mad("transformers")
+        results = train_mad("transformers")
     
     if args.run_mad_mamba:
-        train_mad("mamba")
+        results = train_mad("mamba")
     
     if args.run_mad_hybrid:
-        train_mad("hybrid")
+        results = train_mad("hybrid")
     
     if args.run_mad_mamform:
-        train_mad("mamform")
+        results = train_mad("mamform")
+    
+    if results:
+        with open(args.output_file, 'a') as f:
+            f.write(str(args) + '\n' + str(results) + '\n')
