@@ -114,10 +114,12 @@ class ModelConfig(BaseConfig):
     num_layers: int = 4
     num_trans_layers: int = 4
     num_mamba_layers: int = 4
-    num_hybrid_blocks: int = 4
     hidden_size: int = 128
     num_heads: int = 4
     backbone: str = 'language-model'
+    
+    num_hybrid_blocks: int = 4
+    proj_type: str = 'res'
     
     max_length: int = 1_280
     norm: nn.Module = nn.LayerNorm
