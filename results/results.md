@@ -85,3 +85,14 @@ Epoch is 1-indexed.
 | Mamba      | layers 2 | 2 | 1.67  | 0.20   | 1.00|
 | Hybrid     | blocks 1, Gated-res tLrs 2 mLrs 2 | 3 | 1.566 | 0.005 | 1.000 |
 | MambaFormer| tLrs 2 mLrs 3 | 20  | 1.84 | 1.19 | 0.516 | 
+
+
+## Benchmarking
+
+| Task     | Transformer | Mamba | Hybrid 1-gres | Hybrid 1-gressf | Hybrid 2-gres | Hybrid 2-gressf | MambaFormer |
+| Sel-Copy | (0.243, 17), (0.91, 16)
+| ICR      | (1.55, 18), (0.35, 12)
+| Noisy ICR| 
+| Fuzzy ICR| (1.49, 13), (0.35, 12)
+| Mem      | (0.0003, 12), (1, 0)
+| Comp     | (0.0005, 12), (1, 0)
