@@ -216,10 +216,14 @@ class Trainer:
         best_eval_loss = float('inf')
         best_eval_loss_margin = 0.001
         best_eval_loss_epoch = 0
+        eval_loss_nondecr_count = 0
+        eval_loss_nondecr_max = 3
         best_eval_acc = 0
         best_eval_acc_margin = 0.005
         best_eval_acc_epoch = 0
+        eval_acc_thres = 0.99
         for epoch in range(int(config.epochs)):
+            # Train
             model.train()
             train_loss = 0
             for step, batch in enumerate(tqdm(train_dl, desc=f'train-{epoch}', disable=TQDM_DISABLE)):
@@ -241,6 +245,7 @@ class Trainer:
             
             train_loss = train_loss / len(train_dl)
             
+            # Evaluate
             eval_loss, eval_acc = Trainer.eval_mad(model, test_dl)
              
             print("epoch:", epoch + 1, f"train loss: {train_loss:.3f}, eval loss: {eval_loss:.3f}, eval acc: {eval_acc:.3f}")
@@ -248,10 +253,20 @@ class Trainer:
             if eval_loss < best_eval_loss - best_eval_loss_margin:
                 best_eval_loss = eval_loss
                 best_eval_loss_epoch = epoch
+                eval_loss_nondecr_count = 0
+            else: 
+                # Early stopping
+                eval_loss_nondecr_count += 1
+                if eval_loss_nondecr_count > eval_loss_nondecr_max:
+                    break
             
             if eval_acc > best_eval_acc + best_eval_acc_margin:
                 best_eval_acc = eval_acc
                 best_eval_acc_epoch = epoch
+            
+            # Early stopping
+            if eval_acc > eval_acc_thres:
+                break
             
         Results = namedtuple("Results", ["best_eval_loss", "best_eval_loss_epoch", "best_eval_acc", "best_eval_acc_epoch"])
         return Results(best_eval_loss=best_eval_loss, best_eval_loss_epoch=best_eval_loss_epoch,
