@@ -3,7 +3,11 @@ from collections import namedtuple
 import torch 
 from transformers import AutoTokenizer
 
-from .projector import Combiner, Splitter, NullCombiner, NullSplitter
+from .projector import ( 
+    Combiner, Splitter, 
+    NullCombiner, NullSplitter,
+    ResidualCombiner, ResidualSplitter
+)
 
 class HybridModel(torch.nn.Module):
     """
@@ -25,8 +29,8 @@ class HybridModel(torch.nn.Module):
         dim2 = mamba_model.backbone.embeddings.weight.shape[-1]
         
         # Create intermediate layers and LM head
-        self.combiners = torch.nn.ModuleList([NullCombiner(dim1, dim2) for _ in range(n_hybrid_blocks)])
-        self.splitters = torch.nn.ModuleList([NullSplitter(dim1, dim2) for _ in range(n_hybrid_blocks)])
+        self.combiners = torch.nn.ModuleList([ResidualCombiner(dim1, dim2) for _ in range(n_hybrid_blocks)])
+        self.splitters = torch.nn.ModuleList([ResidualSplitter(dim1, dim2) for _ in range(n_hybrid_blocks)])
         self.proj_dim = max(dim1, dim2)
         self.hybrid_lm_head = self.trans_model.lm_head
 

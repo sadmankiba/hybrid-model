@@ -52,23 +52,23 @@ class Splitter(nn.Module):
     Splitter is used to split the output of the intermediate combiner 
     into two parts to be passed to the two model blocks.
     """
-    def __init__(self, input_dim1, input_dim2):
+    def __init__(self, output_dim1, output_dim2):
         super(Splitter, self).__init__()
-        proj_dim = max(input_dim1, input_dim2)
+        proj_dim = max(output_dim1, output_dim2)
         self.alpha1 = nn.Parameter(torch.ones(1)) # gating parameter for projector1
         self.alpha2 = nn.Parameter(torch.ones(1)) # gating parameter for projector2
-        self.out_proj1 = nn.Linear(proj_dim, input_dim1)
-        self.out_proj2 = nn.Linear(proj_dim, input_dim2)
+        self.out_proj1 = nn.Linear(proj_dim, output_dim1)
+        self.out_proj2 = nn.Linear(proj_dim, output_dim2)
     
     def forward(self, x):
         """
         Args:
             x (torch.Tensor): The output tensor from the combiner. Shape (batch_size, seq_len, proj_dim)
         """
-        input_dim1 = self.out_proj1.weight.shape[0] # weight.shape = (input_dim1, proj_dim)
-        input_dim2 = self.out_proj2.weight.shape[0]
-        proj1_out = (1 - self.alpha1) * self.out_proj1(x) * self.alpha1 * x[:, :, :input_dim1] 
-        proj2_out = (1 - self.alpha2) * self.out_proj2(x) * self.alpha2 * x[:, :, :input_dim2]
+        output_dim1 = self.out_proj1.weight.shape[0] # weight.shape = (output_dim1, proj_dim)
+        output_dim2 = self.out_proj2.weight.shape[0]
+        proj1_out = (1 - self.alpha1) * self.out_proj1(x) * self.alpha1 * x[:, :, :output_dim1] 
+        proj2_out = (1 - self.alpha2) * self.out_proj2(x) * self.alpha2 * x[:, :, :output_dim2]
         return proj1_out, proj2_out
     
 #### Null Combiner and Splitters (no projection or residual) ####
@@ -120,3 +120,82 @@ class NullSplitter(nn.Module):
             x (torch.Tensor): The output tensor from the combiner. Shape (batch_size, seq_len, proj_dim)
         """
         return x[:, :, :self.output_dim1], x[:, :, :self.output_dim2]
+    
+
+#### Residual Combiner and Splitters (has projection+residual, but no gating) ####
+
+class ResidualCombiner(nn.Module):
+    """
+    ResidualCombiner combines residual projected outputs from 
+    two model blocks with equal weight.  
+    """
+    def __init__(self, input_dim1, input_dim2):
+        super(ResidualCombiner, self).__init__()
+        self.input_dim1 = input_dim1
+        self.input_dim2 = input_dim2
+        self.proj_dim = max(input_dim1, input_dim2)
+        self.in_proj1 = nn.Linear(input_dim1, self.proj_dim)
+        self.in_proj2 = nn.Linear(input_dim2, self.proj_dim)
+
+    def forward(self, x1, x2):
+        """
+        Args:
+            x1 (torch.Tensor): The output tensor from the first model block. Shape (batch_size, seq_len, input_dim)
+            x2 (torch.Tensor): The output tensor from the second model block. Shape (batch_size, seq_len, input_dim)
+            
+        """
+        # verify input dimensions
+        assert x1.shape[2] == self.input_dim1, f"Expected input_dim1={self.input_dim1}, got {x1.shape[2]}"
+        assert x2.shape[2] == self.input_dim2, f"Expected input_dim2={self.input_dim2}, got {x2.shape[2]}"
+        
+        # projected embeddings
+        x1_proj = self.in_proj1(x1)
+        x2_proj = self.in_proj2(x2)
+        
+        # pad input to match output dim
+        if x1.shape[2] < self.proj_dim:
+            padding = torch.zeros((x1.shape[0], x1.shape[1], self.proj_dim - x1.shape[2]), device=x1.device)
+            x1 = torch.cat([x1, padding], dim=2)
+            
+        if x2.shape[2] < self.proj_dim:
+            padding = torch.zeros((x2.shape[0], x2.shape[1], self.proj_dim - x2.shape[2]), device=x2.device)
+            x2 = torch.cat([x2, padding], dim=2)
+            
+        # residual connection
+        x1_proj_out = x1_proj + x1
+        x2_proj_out = x2_proj + x2
+
+        # return combined output
+        return (x1_proj_out + x2_proj_out) / 2
+    
+    
+class ResidualSplitter(nn.Module):
+    """
+    ResidualSplitter outputs residual projected input to 
+    the two model blocks.
+    """
+    def __init__(self, output_dim1, output_dim2):
+        super(ResidualSplitter, self).__init__()
+        self.output_dim1 = output_dim1
+        self.output_dim2 = output_dim2
+        self.proj_dim = max(output_dim1, output_dim2)
+        self.out_proj1 = nn.Linear(self.proj_dim, output_dim1)
+        self.out_proj2 = nn.Linear(self.proj_dim, output_dim2)
+    
+    
+    def forward(self, x):
+        """
+        Args:
+            x (torch.Tensor): The output tensor from the combiner. Shape (batch_size, seq_len, proj_dim)
+        """
+        assert x.shape[2] == self.proj_dim, f"Expected proj_dim={self.proj_dim}, got {x.shape[2]}"
+        
+        # calculate projected outputs
+        x1_proj = self.out_proj1(x)
+        x2_proj = self.out_proj2(x)
+        
+        # add residual with truncated input
+        x1_proj_out = x1_proj + x[:, :, :self.output_dim1]
+        x2_proj_out = x2_proj + x[:, :, :self.output_dim2]
+        
+        return x1_proj_out, x2_proj_out

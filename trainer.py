@@ -177,7 +177,7 @@ class Trainer:
                 
                 if args.log_interval > 0 and step % args.log_interval == 0:
                     dev_acc, dev_f1, *_ = Trainer.model_eval(dev_dataloader, model, device)
-                    print(f"epoch {epoch}, step {step}: train loss :: {loss.item() :.3f}, dev acc :: {dev_acc :.3f}")
+                    print(f"epoch {epoch + 1}, step {step}: train loss :: {loss.item() :.3f}, dev acc :: {dev_acc :.3f}")
 
                 if (epoch + step / len(train_dataloader)) >= args.epochs:
                     break
@@ -191,7 +191,7 @@ class Trainer:
                 best_dev_acc = dev_acc
                 Trainer.save_model(model, optimizer, args, config, args.filepath)
 
-            print(f"epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}")
+            print(f"epoch {epoch + 1}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}")
 
     @staticmethod
     def train_mad(model, config):
@@ -230,13 +230,13 @@ class Trainer:
                 train_loss += loss.item()
                 
                 if config.log_interval > 0 and step % config.log_interval == 0:
-                    print(f"epoch {epoch}, step {step}: train loss :: {loss.item() :.3f}")
+                    print(f"epoch {epoch + 1}, step {step}: train loss :: {loss.item() :.3f}")
             
             train_loss = train_loss / len(train_dl)
             
             eval_loss, eval_acc = Trainer.eval_mad(model, test_dl)
              
-            print("epoch:", epoch, f"train loss: {train_loss:.3f}, eval loss: {eval_loss:.3f}, eval acc: {eval_acc:.3f}")
+            print("epoch:", epoch + 1, f"train loss: {train_loss:.3f}, eval loss: {eval_loss:.3f}, eval acc: {eval_acc:.3f}")
        
     @staticmethod 
     def eval_mad(model, eval_dl):

@@ -37,18 +37,23 @@ dev acc: 0.8
 
 ## MAD Tasks 
 
+Epoch is 1-indexed.
+
 ### Selective Copying
 
 ```sh
 --vocab_size 16  --seq_len 20     --num_tokens_to_copy 5 --num_train_examples 4000 --num_test_examples 200     --num_layers 2 --hidden_size 32 --num_heads 2 --epochs 50 --batch_size 8  --lr 5e-4 
 ```
 
-Transformer: epoch: 5 train loss: 0.127, eval loss: 0.159, eval acc: 0.950
+| Model | Parameters |  Epoch  | Train loss | Eval loss | Eval acc |
+| Transformer| layers 2 | 6   | 0.127      | 0.159     |  0.950   |
+| Mamba      | layers 2 | 3   | 0.025      | 0.004     |  1.000   |
+| Hybrid     | blocks 1, Null tLrs 2 mLrs 2 | 2 | 0.061 | 0.056 | 0.989 |  
+| Hybrid     | blocks 2, Null tLrs 2 mLrs 2 | 2 | 0.098 | 0.055 | 0.984 |
+| Hybrid     | blocks 1, Res tLrs 2 mLrs 2 | 3  | 0.287 | 0.059 | 0.984 |
+| Hybrid     | blocks 2, Res tLrs 2 mLrs 2 | 3  | 0.131 | 0.066 | 0.980 |
+| Hybrid     | blocks 1, Gated-res tLrs 2 mLrs 2 | 3 | 0.046 | 0.010 | 0.998 | 
 
-Mamba: epoch: 2 train loss: 0.025, eval loss: 0.004, eval acc: 1.000
-Hybrid (num blocks 1, Gated-residual projectors, trans layers 2, mamba layers 2): epoch: 2 train loss: 0.046, eval loss: 0.010, eval acc: 0.998
-Hybrid (num blocks 1, Null projectors, trans layers 2, mamba layers 2): epoch: 1 train loss: 0.061, eval loss: 0.056, eval acc: 0.989
-Hybrid (num blocks 2, Null projectors, trans layers 2, mamba layers 2): epoch: 1 train loss: 0.098, eval loss: 0.055, eval acc: 0.984
 
 ### In-context Recall 
 
