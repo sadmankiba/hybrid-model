@@ -3,19 +3,21 @@ import argparse
 import torch
 
 from trainer import Trainer
-from mamba.mamba_lmhead import MambaTextClassification
+from mamba_model.mamba_lmhead import MambaTextClassification
 from hybrid.hybrid_model import HybridModelTextClassification, HybridModel
 from hybrid.model_zoo import (
     get_mamba_causal, 
     get_gpt_neo_causal,
 )
-from mad.configs import MADConfig, ModelConfig
+from mad.configs import MADConfig, ModelConfig,ImdbConfig
 
 from transformers import ( 
     AutoConfig,
     AutoTokenizer, 
     AutoModelForSequenceClassification, 
     AutoModelForCausalLM,
+    GPTNeoForSequenceClassification,
+    GPTNeoConfig
 )
 
 gpt_neo_model_checkpoint = "EleutherAI/gpt-neo-125M"
@@ -125,13 +127,31 @@ def train_mamba_seqclass_initd(args):
 
 def get_gpt_neo_causal_initd(model_config):
     config = AutoConfig.from_pretrained(gpt_neo_model_checkpoint, 
-        vocab_size=model_config.vocab_size,
+        #vocab_size=model_config.vocab_size,
         num_layers=model_config.num_trans_layers, 
         hidden_size=model_config.hidden_size, 
         num_heads=model_config.num_heads,
-        pad_token_id=0
+        pad_token_id=50256
     )
     model = AutoModelForCausalLM.from_config(config)
+    return model
+
+def get_gpt_neo_seq_initd(model_config):
+    id2label = {0: "NEGATIVE", 1: "POSITIVE"}
+    label2id = {"NEGATIVE": 0, "POSITIVE": 1}
+
+    config = GPTNeoConfig(
+            vocab_size=model_config.vocab_size,
+            num_layers=model_config.num_trans_layers, 
+            hidden_size=model_config.hidden_size, 
+            num_heads=model_config.num_heads,
+            attention_types=[[['global'], model_config.num_trans_layers]],
+            pad_token_id=50256,
+            num_labels=model_config.num_labels, id2label=id2label, label2id=label2id)
+    model = GPTNeoForSequenceClassification(config)
+    model.score = torch.nn.Linear(in_features=128, out_features=2)
+    #print(model)
+    #exit()
     return model
 
 
@@ -140,10 +160,15 @@ def get_mamba_causal_initd(model_config):
             vocab_size=model_config.vocab_size,
             num_hidden_layers=model_config.num_mamba_layers, 
             hidden_size=model_config.hidden_size, 
-            pad_token_id=0, # eos_token_id from Mamba tokenizer
+            pad_token_id=50256, # eos_token_id from Mamba tokenizer
             output_hidden_states=True
     )
     model = AutoModelForCausalLM.from_config(config)
+    return model
+
+def get_mamba_sequence_initd(model_config):
+    gpt_neo_tokenizer_id = 'EleutherAI/gpt-neo-125M'
+    model = MambaTextClassification(gpt_neo_tokenizer_id, model_config)
     return model
 
 def get_hybrid_causal_initd(model_config):
@@ -154,6 +179,18 @@ def get_hybrid_causal_initd(model_config):
     assert model_config.num_trans_layers % num_blocks == 0
     assert model_config.num_mamba_layers % num_blocks == 0
     model = HybridModel(trans_model, mamba_model, num_blocks)
+    print("model:", model)
+    
+    return model
+
+def get_hybrid_seq_initd(model_config):
+    trans_model = get_gpt_neo_seq_initd(model_config)
+    mamba_model = get_mamba_sequence_initd(model_config)
+    
+    num_blocks = model_config.num_hybrid_blocks
+    assert model_config.num_trans_layers % num_blocks == 0
+    assert model_config.num_mamba_layers % num_blocks == 0
+    model = HybridModelTextClassification(trans_model, mamba_model, num_blocks, model_config.num_labels)
     print("model:", model)
     
     return model
@@ -176,6 +213,20 @@ def train_mad(model_type: str):
     
     Trainer.train_mad(model=model, config=mad_config)
 
+def train_imdb(model_type: str):
+    imdb_config = ImdbConfig()
+    imdb_config.update_from_kwargs(vars(args))
+    model_config = ModelConfig()
+    model_config.update_from_kwargs(vars(args))
+    
+    if model_type == "transformers":
+        model = get_gpt_neo_seq_initd(model_config)
+    elif model_type == "mamba":
+        model = get_mamba_sequence_initd(model_config)
+    elif model_type == "hybrid":
+        model = get_hybrid_seq_initd(model_config)
+    Trainer.train(model, 'EleutherAI/gpt-neo-125M', "imdb", model.parameters(), imdb_config)
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Train a transformer model with Trainer")
     # Training
@@ -187,6 +238,9 @@ def parse_args():
     parser.add_argument("--log_interval", type=int, default=0, help="Log training loss every n steps")
     parser.add_argument("--train_size", type=int, default=0, help="Number of training examples")
     parser.add_argument("--eval_size", type=int, default=0, help="Number of dev examples")
+    parser.add_argument("--use_gpu", type=bool, default=True, help="Use GPU?")
+    parser.add_argument('--device', type=int, default=0)
+
     
     # Which models to run 
     parser.add_argument("--run_trans", action="store_true", help="Run the transformers model")
@@ -197,6 +251,9 @@ def parse_args():
     parser.add_argument("--run_mad_trans", action="store_true", help="Run the MAD tasks with Transformers")
     parser.add_argument("--run_mad_mamba", action="store_true", help="Run the MAD tasks with Mamba")
     parser.add_argument("--run_mad_hybrid", action="store_true", help="Run the MAD tasks with Hybrid model")
+    parser.add_argument("--run_imdb_hybrid", action="store_true", help="Run the IMDB dataset with Hybrid model")
+    parser.add_argument("--run_imdb_trans", action="store_true", help="Run the IMDB dataset with Transformer model")
+    parser.add_argument("--run_imdb_mamba", action="store_true", help="Run the IMDB dataset with Mamba model")
     
     # Initialized models
     parser.add_argument("--num_layers", type=int, default=12, help="Number of layers for the model")
@@ -228,12 +285,12 @@ def parse_args():
     parser.add_argument('--precision', type=str, default='bf16')
     parser.add_argument('--seed', type=int, default=12345)
     parser.add_argument('--target_ignore_index', type=int, default=-100)
-    
+
     args = parser.parse_args()
     args.num_labels = 2
     args.hidden_dropout_prob = 0.1
     args.option = None
-    args.use_gpu = torch.cuda.is_available() 
+    # args.use_gpu = torch.cuda.is_available() 
     
     return args
 
@@ -265,3 +322,12 @@ if __name__ == "__main__":
     
     if args.run_mad_hybrid:
         train_mad("hybrid")
+    
+    if args.run_imdb_hybrid:
+        train_imdb("hybrid")
+
+    if args.run_imdb_trans:
+        train_imdb("transformers")
+    
+    if args.run_imdb_mamba:
+        train_imdb("mamba")

@@ -23,6 +23,7 @@ class HybridDataset(Dataset):
         self.dataset = dataset
         self.p = args
         self.tokenizer =  AutoTokenizer.from_pretrained(tokenizer_id)
+        self.tokenizer.pad_token = self.tokenizer.eos_token
 
     def __len__(self):
         return len(self.dataset)
@@ -32,9 +33,10 @@ class HybridDataset(Dataset):
         return ele
 
     def pad_data(self, data):
+        
         sents = [x["text"] for x in data]
         labels = [x["label"] for x in data]
-        self.tokenizer.pad_token = self.tokenizer.eos_token
+        
         
         encoding = self.tokenizer(sents, return_tensors='pt', padding=True, truncation=True)
         token_ids = torch.LongTensor(encoding['input_ids'])
@@ -107,7 +109,7 @@ class Trainer:
     
     @staticmethod
     def train(model, tokenizer_id, dataset_name, param_list, args):
-        device  = torch.device('cuda') if args.use_gpu else torch.device('cpu') 
+        device  = torch.device(f"cuda:{args.device}") if args.use_gpu else torch.device('cpu') 
         #### Load data
         # create the data and its corresponding datasets and dataloader
         print("device:", device)
@@ -129,19 +131,18 @@ class Trainer:
                                     collate_fn=dev_dataset.collate_fn)
 
         #### Init model
-        config = {'hidden_dropout_prob': args.hidden_dropout_prob,
-                'num_labels': args.num_labels,
-                'hidden_size': 768,
-                'data_dir': '.',
-                'option': args.option}
-
-        config = SimpleNamespace(**config)
+        # config = {'hidden_dropout_prob': args.hidden_dropout_prob,
+        #         'num_labels': args.num_labels,
+        #         'hidden_size': args.hidden_size,
+        #         'data_dir': '.',
+        #         'option': args.option}
+        #config = SimpleNamespace(**config)
 
         # initialize the Senetence Classification Model
         use_amp = True   # Mixed Precision Training reduces memory usage
         scaler = torch.amp.GradScaler(enabled=use_amp)
         model = model.to(device)
-        optimizer = optim.AdamW(param_list, lr=args.lr, weight_decay=args.weight_decay)
+        optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
         ## run for the specified number of epochs
         best_dev_acc = 0
         print("==Started training====")
@@ -157,18 +158,22 @@ class Trainer:
                 b_mask = b_mask.to(device)
                 b_labels = b_labels.to(device)
                 
-                with torch.autocast(device_type=str(device), dtype=torch.float16, enabled=use_amp):
-                    output = model(input_ids=b_ids, attention_mask=b_mask) # For GPT-Neo, output type SequenceClassifierOutputWithPast
-                    logits = output.logits # Classification: (batch_size, n_classes) # LM: (batch_size, vocab_size)
-                    loss = F.nll_loss(F.log_softmax(logits, dim=1), b_labels, reduction='mean')
+                #with torch.autocast(device_type=str(device), dtype=torch.float16, enabled=use_amp):
+                output = model(input_ids=b_ids, attention_mask=b_mask) # For GPT-Neo, output type SequenceClassifierOutputWithPast
+                logits = output.logits # Classification: (batch_size, n_classes) # LM: (batch_size, vocab_size)
+                # print("logsoftmax", F.log_softmax(logits, dim=1))
+                # print("labels", b_labels)
+                loss = F.nll_loss(F.log_softmax(logits, dim=1), b_labels, reduction='mean')
+                # print(loss)
+                # exit()
 
-                scaler.scale(loss).backward()
-                scaler.step(optimizer)
-                scaler.update()
-                
                 # Scaler is used instead of these steps
-                # loss.backward()
-                # optimizer.step()
+                # scaler.scale(loss).backward()
+                # scaler.step(optimizer)
+                # scaler.update()
+                
+                loss.backward()
+                optimizer.step()
                 
                 optimizer.zero_grad()
 
@@ -189,7 +194,7 @@ class Trainer:
 
             if dev_acc > best_dev_acc:
                 best_dev_acc = dev_acc
-                Trainer.save_model(model, optimizer, args, config, args.filepath)
+                #Trainer.save_model(model, optimizer, args, config, args.filepath)
 
             print(f"epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}")
 
@@ -329,3 +334,9 @@ class Trainer:
                 print(f"test acc :: {test_acc :.3f}")
                 for s, t, p in zip(test_sents, test_true, test_pred):
                     f.write(f"{s} ||| {t} ||| {p}\n")
+
+    
+
+
+
+
