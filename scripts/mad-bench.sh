@@ -30,6 +30,7 @@ LOG_INTERVAL=20
 LR=5e-4
 
 tasks=('selective-copying' 'in-context-recall' 'noisy-in-context-recall' 'fuzzy-in-context-recall' 'memorization' 'compression')
+# tasks=('fuzzy-in-context-recall' 'memorization' 'compression')
 
 common_args="--vocab_size $VOCAB_SIZE \
              --seq_len $SEQ_LEN \

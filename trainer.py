@@ -68,8 +68,6 @@ class HybridDataset(Dataset):
 
         return batches
 
-    
-
 class Trainer:
     @staticmethod
     def model_eval(dataloader, model, device):
