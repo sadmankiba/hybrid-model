@@ -3,6 +3,7 @@ import math
 from collections import namedtuple
 from types import SimpleNamespace
 
+import evaluate
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -103,6 +104,38 @@ class Trainer:
 
         return acc, f1, y_pred, y_true, sents
     
+    @staticmethod
+    def eval_squad(dataloader, model):
+        """Evaluate exact match and BLEU score"""
+        model.eval()
+        accuracies = []
+        exact_matches = []
+        bleus = []
+        for step, batch in tqdm(enumerate(dataloader, desc='eval', disable=TQDM_DISABLE)):
+            b_ids, b_mask, b_labels, b_sents = batch[0]['token_ids'], \
+                    batch[0]['attention_mask'], batch[0]['labels'], batch[0]['sents']
+            
+            b_ids = b_ids.to(model.device)
+            b_mask = b_mask.to(model.device)
+            
+            with torch.no_grad():
+                output = model(input_ids=b_ids, attention_mask=b_mask)
+                logits = output.logits.detach().cpu().numpy()
+            
+            preds = np.argmax(logits, axis=-1)
+            decoded_preds = decode(preds)
+            decoded_labels = decode(labels)
+            acc = accuracy(labels, preds)
+            exact_match = evaluate.load('exact_match')
+            bleu = evaluate.load('bleu')
+            accuracies.append(acc)
+            exact_matches.append(exact_match.compute(decoded_labels, decoded_preds))
+            bleus.append(bleu.compute(decoded_labels, decoded_preds))
+            
+        return accuracies.mean(), exact_matches(), bleus.mean()
+            
+            
+            
     
     @staticmethod
     def train(model, tokenizer_id, dataset_name, param_list, args):
