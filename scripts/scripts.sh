@@ -30,9 +30,20 @@ python3 main.py --run_mad_mamba  --task 'selective-copying' --vocab_size 16  --s
 python3 main.py --run_mad_hybrid  --task 'selective-copying' --vocab_size 16  --seq_len 20 \
     --num_tokens_to_copy 5 --num_train_examples 4000 --num_test_examples 200 \
     --num_trans_layers 2 --num_mamba_layers 2 --hidden_size 32 --num_heads 2 --epochs 10 --batch_size 8 \
-    --log_interval 100 --lr 5e-4 --num_hybrid_blocks 1
+    --log_interval 100 --lr 5e-4 --num_hybrid_blocks 1 --proj_type gres
+
+python3 main.py --run_mad_hybrid  --task 'selective-copying' --vocab_size 16  --seq_len 20 \
+    --num_tokens_to_copy 5 --num_train_examples 4000 --num_test_examples 200 \
+    --num_trans_layers 2 --num_mamba_layers 2 --hidden_size 32 --num_heads 2 --epochs 10 --batch_size 8 \
+    --log_interval 100 --lr 5e-4 --num_hybrid_blocks 1 --proj_type gressf
+
+python3 main.py --run_mad_mamform  --task 'selective-copying' --vocab_size 16  --seq_len 20 \
+    --num_tokens_to_copy 5 --num_train_examples 4000 --num_test_examples 200 \
+    --num_trans_layers 2 --num_mamba_layers 3 --hidden_size 32 --num_heads 2 --epochs 10 --batch_size 8 \
+    --log_interval 100 --lr 5e-4
 
 ## In-context Recall
+### 1st set
 python3 main.py --run_mad_trans  --task 'in-context-recall' --vocab_size 16  --seq_len 64 \
     --num_train_examples 4096 --num_test_examples 256 \
     --num_layers 2 --hidden_size 128 --num_heads 16 --epochs 20 --batch_size 32 \
@@ -46,4 +57,25 @@ python3 main.py --run_mad_mamba  --task 'in-context-recall' --vocab_size 16  --s
 python3 main.py --run_mad_hybrid  --task 'in-context-recall' --vocab_size 16  --seq_len 16 \
     --num_train_examples 4096 --num_test_examples 256 \
     --num_trans_layers 2 --num_mamba_layers 2 --hidden_size 128 --num_heads 16 --epochs 20 --batch_size 32 \
+    --log_interval 20 --lr 5e-4
+
+### 2nd set
+python3 main.py --run_mad_trans  --task 'in-context-recall' --vocab_size 16  --seq_len 32 \
+    --num_train_examples 4096 --num_test_examples 256 \
+    --num_layers 2 --hidden_size 64 --num_heads 4 --epochs 20 --batch_size 32 \
+    --log_interval 20 --lr 5e-4
+
+python3 main.py --run_mad_mamba  --task 'in-context-recall' --vocab_size 16  --seq_len 32 \
+    --num_train_examples 4096 --num_test_examples 256 \
+    --num_layers 2 --hidden_size 64 --num_heads 4 --epochs 20 --batch_size 32 \
+    --log_interval 20 --lr 5e-4
+
+python3 main.py --run_mad_hybrid  --task 'in-context-recall' --vocab_size 16  --seq_len 32 \
+    --num_train_examples 4096 --num_test_examples 256 \
+    --num_trans_layers 2 --num_mamba_layers 2 --hidden_size 64 --num_heads 4 --epochs 20 --batch_size 32 \
+    --log_interval 20 --lr 5e-4 --num_hybrid_blocks 1 --proj_type gres
+
+python3 main.py --run_mad_mamform  --task 'in-context-recall' --vocab_size 16  --seq_len 32 \
+    --num_train_examples 4096 --num_test_examples 256 \
+    --num_trans_layers 2 --num_mamba_layers 3 --hidden_size 64 --num_heads 4 --epochs 20 --batch_size 32 \
     --log_interval 20 --lr 5e-4

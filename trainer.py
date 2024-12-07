@@ -1,7 +1,9 @@
 import random
 import math
+from collections import namedtuple
 from types import SimpleNamespace
 
+import evaluate
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -69,8 +71,6 @@ class HybridDataset(Dataset):
 
         return batches
 
-    
-
 class Trainer:
     @staticmethod
     def model_eval(dataloader, model, device):
@@ -106,6 +106,38 @@ class Trainer:
 
         return acc, f1, y_pred, y_true, sents
     
+    @staticmethod
+    def eval_squad(dataloader, model):
+        """Evaluate exact match and BLEU score"""
+        model.eval()
+        accuracies = []
+        exact_matches = []
+        bleus = []
+        for step, batch in tqdm(enumerate(dataloader, desc='eval', disable=TQDM_DISABLE)):
+            b_ids, b_mask, b_labels, b_sents = batch[0]['token_ids'], \
+                    batch[0]['attention_mask'], batch[0]['labels'], batch[0]['sents']
+            
+            b_ids = b_ids.to(model.device)
+            b_mask = b_mask.to(model.device)
+            
+            with torch.no_grad():
+                output = model(input_ids=b_ids, attention_mask=b_mask)
+                logits = output.logits.detach().cpu().numpy()
+            
+            preds = np.argmax(logits, axis=-1)
+            decoded_preds = decode(preds)
+            decoded_labels = decode(labels)
+            acc = accuracy(labels, preds)
+            exact_match = evaluate.load('exact_match')
+            bleu = evaluate.load('bleu')
+            accuracies.append(acc)
+            exact_matches.append(exact_match.compute(decoded_labels, decoded_preds))
+            bleus.append(bleu.compute(decoded_labels, decoded_preds))
+            
+        return accuracies.mean(), exact_matches(), bleus.mean()
+            
+            
+            
     
     @staticmethod
     def train(model, tokenizer_id, dataset_name, param_list, args):
@@ -182,7 +214,7 @@ class Trainer:
                 
                 if args.log_interval > 0 and step % args.log_interval == 0:
                     dev_acc, dev_f1, *_ = Trainer.model_eval(dev_dataloader, model, device)
-                    print(f"epoch {epoch}, step {step}: train loss :: {loss.item() :.3f}, dev acc :: {dev_acc :.3f}")
+                    print(f"epoch {epoch + 1}, step {step}: train loss :: {loss.item() :.3f}, dev acc :: {dev_acc :.3f}")
 
                 if (epoch + step / len(train_dataloader)) >= args.epochs:
                     break
@@ -196,7 +228,7 @@ class Trainer:
                 best_dev_acc = dev_acc
                 #Trainer.save_model(model, optimizer, args, config, args.filepath)
 
-            print(f"epoch {epoch}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}")
+            print(f"epoch {epoch + 1}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}")
 
     @staticmethod
     def train_mad(model, config):
@@ -217,7 +249,17 @@ class Trainer:
         
         model = model.to(device)
         optimizer = optim.Adam(model.parameters(), lr=1e-3)
+        best_eval_loss = float('inf')
+        best_eval_loss_margin = 0.001
+        best_eval_loss_epoch = 0
+        eval_loss_nondecr_count = 0
+        eval_loss_nondecr_max = 3
+        best_eval_acc = 0
+        best_eval_acc_margin = 0.005
+        best_eval_acc_epoch = 0
+        eval_acc_thres = 0.99
         for epoch in range(int(config.epochs)):
+            # Train
             model.train()
             train_loss = 0
             for step, batch in enumerate(tqdm(train_dl, desc=f'train-{epoch}', disable=TQDM_DISABLE)):
@@ -235,13 +277,36 @@ class Trainer:
                 train_loss += loss.item()
                 
                 if config.log_interval > 0 and step % config.log_interval == 0:
-                    print(f"epoch {epoch}, step {step}: train loss :: {loss.item() :.3f}")
+                    print(f"epoch {epoch + 1}, step {step}: train loss :: {loss.item() :.3f}")
             
             train_loss = train_loss / len(train_dl)
             
+            # Evaluate
             eval_loss, eval_acc = Trainer.eval_mad(model, test_dl)
              
-            print("epoch:", epoch, f"train loss: {train_loss:.3f}, eval loss: {eval_loss:.3f}, eval acc: {eval_acc:.3f}")
+            print("epoch:", epoch + 1, f"train loss: {train_loss:.3f}, eval loss: {eval_loss:.3f}, eval acc: {eval_acc:.3f}")
+            
+            if eval_loss < best_eval_loss - best_eval_loss_margin:
+                best_eval_loss = eval_loss
+                best_eval_loss_epoch = epoch
+                eval_loss_nondecr_count = 0
+            else: 
+                # Early stopping
+                eval_loss_nondecr_count += 1
+                if eval_loss_nondecr_count > eval_loss_nondecr_max:
+                    break
+            
+            if eval_acc > best_eval_acc + best_eval_acc_margin:
+                best_eval_acc = eval_acc
+                best_eval_acc_epoch = epoch
+            
+            # Early stopping
+            if eval_acc > eval_acc_thres:
+                break
+            
+        Results = namedtuple("Results", ["best_eval_loss", "best_eval_loss_epoch", "best_eval_acc", "best_eval_acc_epoch"])
+        return Results(best_eval_loss=best_eval_loss, best_eval_loss_epoch=best_eval_loss_epoch,
+                          best_eval_acc=best_eval_acc, best_eval_acc_epoch=best_eval_acc_epoch)
        
     @staticmethod 
     def eval_mad(model, eval_dl):
