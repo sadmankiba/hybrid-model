@@ -122,7 +122,7 @@ from collections import namedtuple
 import torch 
 from transformers import AutoTokenizer
 
-from .projector import ( 
+from projector import ( 
     NullCombiner, NullSplitter,
     ResidualCombiner, ResidualSplitter,
     GatedResidualCombiner, GatedResidualSplitter,
