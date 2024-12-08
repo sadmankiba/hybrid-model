@@ -125,3 +125,25 @@ class ModelConfig(BaseConfig):
     norm: nn.Module = nn.LayerNorm
     position_embeds: tp.Callable = None
     embed_drop_rate: float = 0.0
+    num_labels:int = 2
+
+@dataclass
+class ImdbConfig(BaseConfig):
+    """Model configuration for models"""
+    #data_path: str = './data'
+    # training settings:
+    batch_size: int = 32
+    epochs: float = 20
+    lr: float = 5e-4
+    weight_decay: float = 0.002
+    #optimizer: str = 'adamw'
+    #scheduler: str = 'cosine'
+    #min_lr: float = 1e-6
+    #early_stop: bool = False
+    #precision: str = 'bf16'
+    #log_interval: int = 0 
+    log_interval:int = 50
+    use_gpu: bool = True
+    eval_size = 0
+    train_size = 0
+    device:int =0

@@ -32,6 +32,7 @@ class HybridModel(torch.nn.Module):
         self.n_blocks = n_hybrid_blocks
         self.n_trans_layers = len(transfomer_model.transformer.h)
         self.n_mamba_layers = len(mamba_model.backbone.layers)
+        # print(self.n_trans_layers , self.n_blocks)
         assert self.n_trans_layers % self.n_blocks == 0
         assert self.n_mamba_layers % self.n_blocks == 0
         dim1 = transfomer_model.transformer.wte.weight.shape[-1]
@@ -75,9 +76,9 @@ class HybridModel(torch.nn.Module):
         for i in range(self.n_blocks):
             trans_input_emb, mamba_input_embeds = self.splitters[i](combined_emb)
             for j in range(trans_layers_per_block):
-                trans_input_emb = trans_layers[trans_layers_per_block * i + j](trans_input_emb)[0]    
+                trans_input_emb = trans_layers[trans_layers_per_block * i + j](trans_input_emb, attention_mask=attention_mask)[0]    
             for k in range(mamba_layers_per_block):
-                mamba_input_embeds = mamba_layers[mamba_layers_per_block * i + k](mamba_input_embeds)
+                mamba_input_embeds = mamba_layers[mamba_layers_per_block * i + k](mamba_input_embeds, attention_mask=attention_mask)
             
             combined_emb = self.combiners[i](trans_input_emb, mamba_input_embeds)
             hidden_states += (combined_emb, )
