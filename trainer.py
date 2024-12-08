@@ -34,7 +34,8 @@ class HybridDataset(Dataset):
         return ele
 
     def pad_data(self, data):
-        sents = [x["text"] for x in data]
+        # Truncate sentences
+        sents = [x["text"][:400] for x in data]
         labels = [x["label"] for x in data]
         self.tokenizer.pad_token = self.tokenizer.eos_token
         
@@ -207,7 +208,7 @@ class Trainer:
                 train_loss += loss.item()
                 num_batches += 1
                 
-                if args.log_interval > 0 and step % args.log_interval == 0:
+                if step > 0 and args.log_interval > 0 and step % args.log_interval == 0:
                     dev_acc, dev_f1, *_ = Trainer.model_eval(dev_dataloader, model, device)
                     print(f"epoch {epoch + 1}, step {step}: train loss :: {loss.item() :.3f}, dev acc :: {dev_acc :.3f}")
 
