@@ -177,9 +177,10 @@ class HybridModel(torch.nn.Module):
         Args:
             input_ids (torch.Tensor): The input tensor of shape (batch_size, seq_len)
             attention_mask (torch.Tensor): The attention mask tensor of shape (batch_size, seq_len)
-        """
 
-        att_mask = attention_mask.to("cuda:2")
+            input_ids and attention_mask need to be on cuda 4 (same as GPT-Neo)
+            Output is on cuda 3
+        """
 
         # Get the transformer and mamba model layers
         trans_layers = self.trans_model.h
@@ -222,7 +223,7 @@ class HybridModelTextClassification(torch.nn.Module):
         output = self.hybrid_model(input_ids, attention_mask)
         last_hidden_states = output.hidden_states[-1] 
         mean_hidden_states = last_hidden_states.mean(dim=1)
-        logits = self.cls_head(mean_hidden_states.to("cuda:1"))
+        logits = self.cls_head(mean_hidden_states)
         
         if labels is None:
             ClassificationOutput = namedtuple("ClassificationOutput", ["logits"])
