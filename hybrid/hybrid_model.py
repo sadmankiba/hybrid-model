@@ -149,13 +149,13 @@ class HybridModel(torch.nn.Module):
         self.trans_model = transformer_model
         self.mamba_model = mamba_model
         self.n_blocks = n_hybrid_blocks
-        self.n_trans_layers = len(transformer_model.transformer.h)
-        self.n_mamba_layers = len(mamba_model.backbone.layers)
+        self.n_trans_layers = len(transformer_model.h)
+        self.n_mamba_layers = len(mamba_model.layers)
         # print(self.n_trans_layers , self.n_blocks)
         assert self.n_trans_layers % self.n_blocks == 0
         assert self.n_mamba_layers % self.n_blocks == 0
-        dim1 = transformer_model.transformer.wte.weight.shape[-1]
-        dim2 = mamba_model.backbone.embeddings.weight.shape[-1]
+        dim1 = transformer_model.wte.weight.shape[-1]
+        dim2 = mamba_model.embeddings.weight.shape[-1]
         
         # Create intermediate layers and LM head
         Combiner = Projectors[proj_type][0]
@@ -163,6 +163,7 @@ class HybridModel(torch.nn.Module):
         self.combiners = torch.nn.ModuleList([Combiner(dim1, dim2) for _ in range(n_hybrid_blocks)])
         self.splitters = torch.nn.ModuleList([Splitter(dim1, dim2) for _ in range(n_hybrid_blocks)])
         self.proj_dim = max(dim1, dim2)
+        print(transformer_model.config.vocab_size)
         self.wte = torch.nn.Embedding(transformer_model.config.vocab_size, self.proj_dim)
         self.lm_head = torch.nn.Linear(self.proj_dim, transformer_model.config.vocab_size, bias = False)
         self.layer_norm = torch.nn.LayerNorm((self.proj_dim,), eps=1e-05, elementwise_affine=True)
@@ -190,7 +191,7 @@ class HybridModel(torch.nn.Module):
 
         # Pass through word and position embeddings
         trans_t_emb = self.wte(input_ids)
-        trans_p_emb = self.wpe(torch.tensor([[i for i in range(input_ids.shape[1])]]).to(input_ids.device))
+        trans_p_emb = self.trans_model.wpe(torch.tensor([[i for i in range(input_ids.shape[1])]]).to(input_ids.device))
         # trans_input_emb = trans_t_emb + trans_p_emb
 
         # Pass the input through each block and intermediate layers
@@ -255,13 +256,13 @@ class MambaFormer(torch.nn.Module):
         super(MambaFormer, self).__init__()
         self.trans_model = transformer_model
         self.mamba_model = mamba_model
-        self.n_trans_layers = len(transformer_model.transformer.h)
-        self.n_mamba_layers = len(mamba_model.backbone.layers)
+        self.n_trans_layers = len(transformer_model.h)
+        self.n_mamba_layers = len(mamba_model.layers)
         assert self.n_trans_layers == self.n_mamba_layers - 1
         self.n_blocks = self.n_trans_layers
         
-        dim1 = transformer_model.transformer.wte.weight.shape[-1]
-        dim2 = mamba_model.backbone.embeddings.weight.shape[-1]
+        dim1 = transformer_model.wte.weight.shape[-1]
+        dim2 = mamba_model.embeddings.weight.shape[-1]
         assert dim1 == dim2
         
         self.lm_head = self.trans_model.lm_head
