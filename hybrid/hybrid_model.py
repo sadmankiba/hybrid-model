@@ -163,7 +163,12 @@ class HybridModel(torch.nn.Module):
         self.combiners = torch.nn.ModuleList([Combiner(dim1, dim2) for _ in range(n_hybrid_blocks)])
         self.splitters = torch.nn.ModuleList([Splitter(dim1, dim2) for _ in range(n_hybrid_blocks)])
         self.proj_dim = max(dim1, dim2)
-        # self.hybrid_lm_head = self.trans_model.lm_head
+        self.wte = torch.nn.Embedding(transformer_model.config.vocab_size, self.proj_dim)
+        self.lm_head = torch.nn.Linear(self.proj_dim, transformer_model.config.vocab_size, bias = False)
+        self.layer_norm = torch.nn.LayerNorm((self.proj_dim,), eps=1e-05, elementwise_affine=True)
+
+        # Weight tying
+        self.lm_head.weight = self.wte.weight 
 
 
     @property 
@@ -172,14 +177,11 @@ class HybridModel(torch.nn.Module):
         return model_device
 
 
-    def forward(self, input_ids, attention_mask=None):
+    def forward(self, input_ids, attention_mask=None, labels=None):
         """
         Args:
             input_ids (torch.Tensor): The input tensor of shape (batch_size, seq_len)
             attention_mask (torch.Tensor): The attention mask tensor of shape (batch_size, seq_len)
-
-            input_ids and attention_mask need to be on cuda 4 (same as GPT-Neo)
-            Output is on cuda 3
         """
 
         # Get the transformer and mamba model layers
@@ -187,30 +189,38 @@ class HybridModel(torch.nn.Module):
         mamba_layers = self.mamba_model.layers
 
         # Pass through word and position embeddings
-        trans_t_emb = self.trans_model.wte(input_ids)
-        trans_p_emb = self.trans_model.wpe(torch.tensor([[i for i in range(input_ids.shape[1])]]).to(input_ids.device))
-        trans_input_emb = trans_t_emb + trans_p_emb
+        trans_t_emb = self.wte(input_ids)
+        trans_p_emb = self.wpe(torch.tensor([[i for i in range(input_ids.shape[1])]]).to(input_ids.device))
+        # trans_input_emb = trans_t_emb + trans_p_emb
 
         # Pass the input through each block and intermediate layers
-        combined_emb = trans_input_emb  # (batch_size, seq_len, proj_dim)
+        combined_emb = trans_t_emb  # (batch_size, seq_len, proj_dim)
         hidden_states = (combined_emb, )
         trans_layers_per_block = self.n_trans_layers // self.n_blocks
         mamba_layers_per_block = self.n_mamba_layers // self.n_blocks
         for i in range(self.n_blocks):
             trans_input_emb, mamba_input_embeds = self.splitters[i](combined_emb)
+            if i == 0:
+                trans_input_emb += trans_p_emb
             for j in range(trans_layers_per_block):
                 trans_input_emb = trans_layers[trans_layers_per_block * i + j](trans_input_emb,cache_position=attention_mask)[0]    
             for k in range(mamba_layers_per_block):
                 mamba_input_embeds = mamba_layers[mamba_layers_per_block * i + k](mamba_input_embeds,cache_position=attention_mask)
             
             combined_emb = self.combiners[i](trans_input_emb, mamba_input_embeds)
+            combined_emb = self.layer_norm(combined_emb)   # Apply LayerNorm
             hidden_states += (combined_emb, )
         
-        # No norm layer for now 
-        # lm_head_out = self.hybrid_lm_head(combined_emb)
-        
-        Output = namedtuple("Output", ["hidden_states", "logits"])
-        return Output(hidden_states=hidden_states, logits=lm_head_out)
+        lm_head_out = self.lm_head(combined_emb)
+
+        if labels is None:
+            Output = namedtuple("Output", ["hidden_states", "logits"])
+            return Output(hidden_states=hidden_states, logits=lm_head_out)
+        else:
+            Output = namedtuple("Output", ["loss", "hidden_states", "logits"])
+            loss_fct = torch.nn.CrossEntropyLoss()
+            loss = loss_fct(lm_head_out, labels)
+            return Output(loss=loss, hidden_states=hidden_states, logits=lm_head_out)
 
 
 class HybridModelTextClassification(torch.nn.Module):
