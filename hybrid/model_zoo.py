@@ -48,3 +48,7 @@ def test_trans_model():
 if __name__ == "__main__":
     test_mamba_model()
     test_trans_model()
+    
+# Output
+# Mamba model output: ["Hey how are you doing?\n\nI'm so glad you're here."]
+# GPT-Neo model output: ["Hey how are you doing?\n\nI'm doing a lot of research on the internet and I'm not sure if I'm"]

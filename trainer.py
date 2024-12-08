@@ -71,6 +71,24 @@ class HybridDataset(Dataset):
 
         return batches
 
+class SquadDataset(Dataset):
+    """
+    Dataloader learns the dataset length from len(). 
+    It gets an item using indexing and passes batches items
+    to collate_fn to convert them into a batch. 
+    """
+    def __init__(self, dataset):
+        self.dataset = dataset
+    
+    def __len__(self):
+        return len(self.dataset)
+    
+    def __getitem__(self, idx):
+        """Return an item from the base dataset"""
+        return self.dataset[idx]
+    
+    def collate_fn(self, examples):
+
 class Trainer:
     @staticmethod
     def model_eval(dataloader, model, device):

@@ -1,9 +1,11 @@
 import argparse
+import os 
+
 
 import torch
 
 from trainer import Trainer
-from mamba.mamba_lmhead import MambaTextClassification
+from mamba_model.mamba_lmhead import MambaTextClassification
 from hybrid.hybrid_model import HybridModelTextClassification, HybridModel, MambaFormer
 from hybrid.model_zoo import (
     get_mamba_causal, 
@@ -311,6 +313,7 @@ def parse_args():
 
 
 if __name__ == "__main__":
+    os.environ['PJRT_DEVICE'] = 'CUDA' # For GCP
     args = parse_args() 
     print("args:", args)
     
