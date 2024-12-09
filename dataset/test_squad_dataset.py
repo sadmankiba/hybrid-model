@@ -13,6 +13,7 @@ def test_get_answer_template_end_pos():
     squadprep = SquadPrerprocessing(tokenizer, max_length)
     pos = squadprep._get_answer_template_end_pos(encoding, answer_template)
     assert pos == 10
+    print("test_get_answer_template_end_pos passed")
 
 # text: Context: A dog Question: Dog happy? Answer: yes happy
 # whole encoding: {'input_ids': tensor([[21947,    25,   317,  3290, 18233,    25,  8532,  3772,    30, 23998,
@@ -22,7 +23,7 @@ def test_get_answer_template_end_pos():
 def test_chunk_answer():
     tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neo-125M")
     tokenizer.pad_token = tokenizer.eos_token # for open-ended generation
-    squadprep = SquadPrerprocessing(tokenizer, 16)
+    squadprep = SquadPrerprocessing(tokenizer, 16, split='validation')
     
     squad_dataset = {
         'context': "A dog",
@@ -31,6 +32,7 @@ def test_chunk_answer():
     }
 
     squadprep._chunk_answer(squad_dataset)
+    print("test_chunk_answer passed")
 
 # encoding {'input_ids': tensor([21947,    25,   317,  3290, 18233,    25,  8532,  3772,    30, 23998,
 #            25,  3763,  3772, 50256]), 'attention_mask': tensor([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])}
@@ -72,6 +74,7 @@ def test_get_squad_causal_dataset():
     squadprep = SquadPrerprocessing(tokenizer, 256, num_samples=num_samples)
     items = squadprep.get_squad_causal_dataset()
     assert len(items) == num_samples
+    print("test_get_squad_causal_dataset passed")
     
     
 if __name__ == "__main__":

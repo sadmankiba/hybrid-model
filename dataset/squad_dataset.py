@@ -95,9 +95,10 @@ class SquadPrerprocessing:
                 torch.tensor([0] * (self.max_length - len(attention_mask)))))
             
             labels = input_ids_orig[1:cur_pos+1].clone()
-            labels[:ans_start_pos - 1] = -100
-            labels = torch.concatenate((labels, 
-                torch.tensor([-100] * (self.max_length - len(labels))))) 
+            if self.split == 'validation':
+                labels[:ans_start_pos - 1] = -100
+            
+            labels = torch.concatenate((labels, torch.tensor([-100] * (self.max_length - len(labels))))) 
             
             items.append({
                 'context': context,

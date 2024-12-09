@@ -13,7 +13,6 @@ def get_gpt_neo_causal():
     trans_model = AutoModelForCausalLM.from_pretrained(
         gpt_neo_model_checkpoint,
         torch_dtype="auto",
-        device_map="cpu"
     )
     return trans_model
 

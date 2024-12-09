@@ -1,10 +1,19 @@
 import argparse
 import os 
 
-
 import torch
+from torch.utils.data import DataLoader
+from transformers import ( 
+    AutoConfig,
+    AutoTokenizer, 
+    AutoModelForSequenceClassification, 
+    AutoModelForCausalLM,
+    GPTNeoForSequenceClassification,
+    GPTNeoConfig
+)
 
 from trainer import Trainer
+from dataset.squad_dataset import SquadDataset
 from mamba_model.mamba_lmhead import MambaTextClassification
 from hybrid.hybrid_model import HybridModelTextClassification, HybridModel, MambaFormer
 from hybrid.model_zoo import (
@@ -15,14 +24,6 @@ from hybrid.model_zoo import (
 )
 from mad.configs import MADConfig, ModelConfig,ImdbConfig
 
-from transformers import ( 
-    AutoConfig,
-    AutoTokenizer, 
-    AutoModelForSequenceClassification, 
-    AutoModelForCausalLM,
-    GPTNeoForSequenceClassification,
-    GPTNeoConfig
-)
 
 gpt_neo_model_checkpoint = "EleutherAI/gpt-neo-125M"
 mamba_model_checkpoint = "state-spaces/mamba-130m-hf"
@@ -258,8 +259,10 @@ def eval_squad(args, model_type: str):
         mamba_model = get_mamba_causal()
         tokenizer = get_gpt_neo_tokenizer()
         model = HybridModel(trans_model, mamba_model, args.proj_type, args.num_hybrid_blocks)
-        
-    Trainer.eval_squad(model, tokenizer, args)
+    
+    squad_ds = SquadDataset(tokenizer, args.max_length, split="validation", num_samples=args.eval_size)
+    squad_val_dl = DataLoader(squad_ds, shuffle=True, batch_size=1) # make individual predictions
+    Trainer.eval_squad(squad_val_dl, model, tokenizer, args)
 
 ### Parsing ###
 
@@ -277,6 +280,7 @@ def parse_args():
     parser.add_argument("--max_length", type=int, default=256, help="Max length of input sequence")
     parser.add_argument("--use_gpu", type=bool, default=True, help="Use GPU?")
     parser.add_argument('--device', type=int, default=0)
+    parser.add_argument("--use_amp", type=bool, default=True, help="Use automatic mixed precision")
     parser.add_argument("--output_file", type=str, default="results.txt", help="File to save results")
     
     # Inference 
