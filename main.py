@@ -133,11 +133,11 @@ def train_mamba_seqclass_initd(args):
 
 def get_gpt_neo_causal_initd(model_config):
     config = AutoConfig.from_pretrained(gpt_neo_model_checkpoint, 
-        #vocab_size=model_config.vocab_size,
+        vocab_size=model_config.vocab_size,
         num_layers=model_config.num_trans_layers, 
         hidden_size=model_config.hidden_size, 
         num_heads=model_config.num_heads,
-        pad_token_id=50256
+        pad_token_id=0
     )
     model = AutoModelForCausalLM.from_config(config)
     return model

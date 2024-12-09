@@ -24,7 +24,7 @@ class MADConfig(BaseConfig):
     """MAD configuration."""
 
     # task settings:
-    task: str = 'in-context-recall'
+    mad_task: str = 'in-context-recall'
     vocab_size: int = 16
     seq_len: int = 128
     frac_noise: float = 0.0
@@ -59,15 +59,15 @@ class MADConfig(BaseConfig):
     @property
     def instance_fn(self) -> tp.Callable:
         """returns function from registry used to generate an instance of the task"""
-        if self.task in task_registry:
-            return task_registry[self.task]['instance_fn']
+        if self.mad_task in task_registry:
+            return task_registry[self.mad_task]['instance_fn']
         else:
             return None
 
     @property
     def instance_fn_kwargs(self) -> tp.Dict:
         """returns dict of all kwargs required to create an instance with self.instance_fn"""
-        if self.task == 'memorization':
+        if self.mad_task == 'memorization':
             # We need to generate a kv_map for the memorization task.
             # As this mapping is fixed, we can generate it here,
             # avoiding that it is recreated every time a new task instance is created.
