@@ -211,8 +211,12 @@ class HybridModel(torch.nn.Module):
             combined_emb = self.combiners[i](trans_input_emb, mamba_input_embeds)
             combined_emb = self.layer_norm(combined_emb)   # Apply LayerNorm
             hidden_states += (combined_emb, )
-        
-        lm_head_out = self.lm_head(combined_emb)
+        #print( "combined", combined_emb.shape)
+        #hidden_concate = torch.cat(hidden_states,dim=1)
+        #print( "hidden_state", hidden_concate.shape)
+        lm_head_out = self.lm_head(combined_emb.reshape(-1,self.proj_dim))
+        #print("lm_head",lm_head_out.shape)
+       
 
         if labels is None:
             Output = namedtuple("Output", ["hidden_states", "logits"])
@@ -220,7 +224,7 @@ class HybridModel(torch.nn.Module):
         else:
             Output = namedtuple("Output", ["loss", "hidden_states", "logits"])
             loss_fct = torch.nn.CrossEntropyLoss()
-            loss = loss_fct(lm_head_out, labels)
+            loss = loss_fct(lm_head_out, labels.reshape(-1))
             return Output(loss=loss, hidden_states=hidden_states, logits=lm_head_out)
 
 
