@@ -10,12 +10,13 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torch.utils.data.dataset
 import numpy as np
+from datasets import load_dataset
 from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader, random_split
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from sklearn.metrics import classification_report, f1_score, recall_score, accuracy_score
 
-from datasets import load_dataset
+from dataset.squad_dataset import SquadDataset
 from mad.gen_data import generate_data
 
 TQDM_DISABLE = False
@@ -71,23 +72,6 @@ class HybridDataset(Dataset):
 
         return batches
 
-class SquadDataset(Dataset):
-    """
-    Dataloader learns the dataset length from len(). 
-    It gets an item using indexing and passes batches items
-    to collate_fn to convert them into a batch. 
-    """
-    def __init__(self, dataset):
-        self.dataset = dataset
-    
-    def __len__(self):
-        return len(self.dataset)
-    
-    def __getitem__(self, idx):
-        """Return an item from the base dataset"""
-        return self.dataset[idx]
-    
-    def collate_fn(self, examples):
 
 class Trainer:
     @staticmethod
@@ -125,34 +109,61 @@ class Trainer:
         return acc, f1, y_pred, y_true, sents
     
     @staticmethod
-    def eval_squad(dataloader, model):
+    def eval_squad(model, tokenizer, args):
         """Evaluate exact match and BLEU score"""
         model.eval()
-        accuracies = []
-        exact_matches = []
+        token_exact_matches = []
+        sent_exact_matches = []
         bleus = []
-        for step, batch in tqdm(enumerate(dataloader, desc='eval', disable=TQDM_DISABLE)):
-            b_ids, b_mask, b_labels, b_sents = batch[0]['token_ids'], \
-                    batch[0]['attention_mask'], batch[0]['labels'], batch[0]['sents']
+        rogues = []
+        squad_ds = SquadDataset(tokenizer, args.max_length, split="validation", num_samples=args.eval_size)
+        squad_val_dl = DataLoader(squad_ds, shuffle=True, batch_size=1) # make individual predictions
+        
+        for step, batch in enumerate(tqdm(squad_val_dl, desc='eval squad', disable=TQDM_DISABLE)):
+            b_ids, b_mask, b_labels, b_ctxt, b_ques, b_ans = batch['input_ids'], \
+                    batch['attention_mask'], batch['labels'], batch['context'], \
+                    batch['question'], batch['answer']
             
-            b_ids = b_ids.to(model.device)
-            b_mask = b_mask.to(model.device)
+            # truncate b_ids and b_mask
+            trunc_pos = b_mask[0].tolist().index(0)
+            b_ids = b_ids[:, :trunc_pos].to(model.device)
+            b_mask = b_mask[:, :trunc_pos].to(model.device)
             
+            all_preds = []
             with torch.no_grad():
-                output = model(input_ids=b_ids, attention_mask=b_mask)
-                logits = output.logits.detach().cpu().numpy()
+                for _ in range(args.max_new_tokens):
+                    output = model(input_ids=b_ids, attention_mask=b_mask) 
+                    logits = output.logits.detach().cpu().numpy() # (batch_size, seq_len, vocab_size)
+                    last_logits = logits[:, -1, :]  # (batch_size, vocab_size)
+                    preds = np.argmax(last_logits, axis=-1) # (batch_size,)
+                    all_preds.append(preds)
+                    if np.all(preds == tokenizer.eos_token_id):
+                        break
+
+                    b_ids = torch.cat([b_ids, torch.tensor(preds).unsqueeze(dim=1).to(model.device)], dim=1)
+                    b_mask = torch.cat([b_mask, torch.ones((1, 1)).to(model.device)], dim=1)
             
-            preds = np.argmax(logits, axis=-1)
-            decoded_preds = decode(preds)
-            decoded_labels = decode(labels)
-            acc = accuracy(labels, preds)
-            exact_match = evaluate.load('exact_match')
-            bleu = evaluate.load('bleu')
-            accuracies.append(acc)
-            exact_matches.append(exact_match.compute(decoded_labels, decoded_preds))
-            bleus.append(bleu.compute(decoded_labels, decoded_preds))
+            all_preds = np.array(all_preds).T  # (batch_size, max_new_tokens)
+            responses = tokenizer.batch_decode(all_preds, skip_special_tokens=True) # (batch_size,)
+            print_all = True
+            if print_all:
+                print(f"context: {b_ctxt} \nquestion: {b_ques} \nanswer: {b_ans}")
+                print("pred tokens:", all_preds[0])
+                print("response:", responses[0])
             
-        return accuracies.mean(), exact_matches(), bleus.mean()
+            if step >= 5: 
+                exit()
+
+            # decoded_preds = decode(preds)
+            # decoded_labels = decode(labels)
+            # acc = accuracy(labels, preds)
+            # exact_match = evaluate.load('exact_match')
+            # bleu = evaluate.load('bleu')
+            # accuracies.append(acc)
+            # exact_matches.append(exact_match.compute(decoded_labels, decoded_preds))
+            # bleus.append(bleu.compute(decoded_labels, decoded_preds))
+            
+        return token_exact_matches.mean(), sent_exact_matches(), bleus.mean()
             
             
             

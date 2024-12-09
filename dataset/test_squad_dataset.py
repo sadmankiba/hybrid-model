@@ -68,12 +68,10 @@ def test_chunk_answer():
 def test_get_squad_causal_dataset():
     tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neo-125M")
     tokenizer.pad_token = tokenizer.eos_token # for open-ended generation
-    num_train_samples = 5
-    num_val_samples = 5
-    squadprep = SquadPrerprocessing(tokenizer, 256, num_train_samples=num_train_samples, num_val_samples=num_val_samples)
-    train_items, val_items = squadprep.get_squad_causal_dataset()
-    assert len(train_items) == num_train_samples
-    assert len(val_items) == num_val_samples
+    num_samples = 5
+    squadprep = SquadPrerprocessing(tokenizer, 256, num_samples=num_samples)
+    items = squadprep.get_squad_causal_dataset()
+    assert len(items) == num_samples
     
     
 if __name__ == "__main__":

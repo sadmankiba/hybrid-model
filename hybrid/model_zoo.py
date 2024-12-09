@@ -17,9 +17,15 @@ def get_gpt_neo_causal():
     )
     return trans_model
 
+def get_gpt_neo_tokenizer():
+    return AutoTokenizer.from_pretrained(gpt_neo_model_checkpoint)
+
 def get_mamba_causal():
     mamba_model = MambaForCausalLM.from_pretrained(mamba_model_checkpoint)
     return mamba_model
+
+def get_mamba_tokenizer():
+    return AutoTokenizer.from_pretrained(mamba_model_checkpoint)
 
 def test_mamba_model():
     mamba_tokenizer = AutoTokenizer.from_pretrained("state-spaces/mamba-130m-hf")

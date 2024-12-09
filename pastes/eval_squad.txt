@@ -1,0 +1,106 @@
+#### GPT-Neo ##### 
+
+*********
+context: ['The Normans (Norman: Nourmands; French: Normands; Latin: Normanni) were the people who in the 10th and 11th centuries gave their name to Normandy, a region in France. They were descended from Norse ("Norman" comes from "Norseman") raiders and pirates from Denmark, Iceland and Norway who, under their leader Rollo, agreed to swear fealty to King Charles III of West Francia. Through generations of assimilation and mixing with the native Frankish and Roman-Gaulish populations, their descendants would gradually merge with the Carolingian-based cultures of West Francia. The distinct cultural and ethnic identity of the Normans emerged initially in the first half of the 10th century, and it continued to evolve over the succeeding centuries.']
+question: ['What is France a region of?']
+answer: ['']
+pred tokens: [ 2602    62   198   198   464 11220   504   547   262   717   284   307
+  5495   284   262  4141  3303    13  1119   547]
+response: _________
+
+The Normans were the first to be introduced to the French language. They were
+
+********
+context: ['Various princes of the Holy Land arrived in Limassol at the same time, in particular Guy de Lusignan. All declared their support for Richard provided that he support Guy against his rival Conrad of Montferrat. The local barons abandoned Isaac, who considered making peace with Richard, joining him on the crusade, and offering his daughter in marriage to the person named by Richard. But Isaac changed his mind and tried to escape. Richard then proceeded to conquer the whole island, his troops being led by Guy de Lusignan. Isaac surrendered and was confined with silver chains, because Richard had promised that he would not place him in irons. By 1 June, Richard had conquered the whole island. His exploit was well publicized and contributed to his reputation; he also derived significant financial gains from the conquest of the island. Richard left for Acre on 5 June, with his allies. Before his departure, he named two of his Norman generals, Richard de Camville and Robert de Thornham, as governors of Cyprus.'] 
+question: ["Who was Guy's Rival?"] 
+answer: ['Conrad of Montferrat']
+pred tokens: [   13   198   198   464  1708  1110    11  6219   390  7298  4244   290
+  5199   390 31422  2763   547  1908   284  4013]
+response: .
+
+The following day, Richard de Camville and Robert de Thornham were sent to Ac
+eval squad:   0%|▏                                                                                                                                 | 1/1000 [00:17<4:52:47, 17.58s/it]context: ['Closely related fields in theoretical computer science are analysis of algorithms and computability theory. A key distinction between analysis of algorithms and computational complexity theory is that the former is devoted to analyzing the amount of resources needed by a particular algorithm to solve a problem, whereas the latter asks a more general question about all possible algorithms that could be used to solve the same problem. More precisely, it tries to classify problems that can or cannot be solved with appropriately restricted resources. In turn, imposing restrictions on the available resources is what distinguishes computational complexity from computability theory: the latter theory asks what kind of problems can, in principle, be solved algorithmically.'] 
+question: ['What two fields of theoretical computer science closely mirror computational complexity theory?'] 
+answer: ['analysis of algorithms and computability theory']
+pred tokens: [  290 31350 13357  4583    13   198   198   464  1388  3061   286   428
+  3348   318   284  2148   257 16200  9355   329]
+response:  and computational complexity theory.
+
+The main goal of this paper is to provide a theoretical framework for
+
+********
+context: ['A deterministic Turing machine is the most basic Turing machine, which uses a fixed set of rules to determine its future actions. A probabilistic Turing machine is a deterministic Turing machine with an extra supply of random bits. The ability to make probabilistic decisions often helps algorithms solve problems more efficiently. Algorithms that use random bits are called randomized algorithms. A non-deterministic Turing machine is a deterministic Turing machine with an added feature of non-determinism, which allows a Turing machine to have multiple possible future actions from a given state. One way to view non-determinism is that the Turing machine branches into many possible computational paths at each step, and if it solves the problem in any of these branches, it is said to have solved the problem. Clearly, this model is not meant to be a physically realizable model, it is just a theoretically interesting abstract machine that gives rise to particularly interesting complexity classes. For examples, see non-deterministic algorithm.'] 
+question: ['What is generally considered to be the most basic iteration of a Turing machine?'] 
+answer: ['A deterministic Turing machine']
+pred tokens: [49228 39141  4572   318   257  2206 49228 39141  4572   351   281  3131
+  5127   286  4738 10340    13   317  1729    12]
+response: ministic Turing machine is a deterministic Turing machine with an extra supply of random bits. A non-
+
+*********
+context: ['The Normans (Norman: Nourmands; French: Normands; Latin: Normanni) were the people who in the 10th and 11th centuries gave their name to Normandy, a region in France. They were descended from Norse ("Norman" comes from "Norseman") raiders and pirates from Denmark, Iceland and Norway who, under their leader Rollo, agreed to swear fealty to King Charles III of West Francia. Through generations of assimilation and mixing with the native Frankish and Roman-Gaulish populations, their descendants would gradually merge with the Carolingian-based cultures of West Francia. The distinct cultural and ethnic identity of the Normans emerged initially in the first half of the 10th century, and it continued to evolve over the succeeding centuries.'] 
+question: ['From which countries did the Norse originate?'] 
+answer: ['Denmark, Iceland and Norway']
+pred tokens: [  383 11220   504    13   198   198   464 11220   504   547   262   717
+   284   307  5495   284   262  3594  3303    13]
+response:  The Normans.
+
+The Normans were the first to be introduced to the English language.
+
+***********
+context: ["A Turing machine is a mathematical model of a general computing machine. It is a theoretical device that manipulates symbols contained on a strip of tape. Turing machines are not intended as a practical computing technology, but rather as a thought experiment representing a computing machine—anything from an advanced supercomputer to a mathematician with a pencil and paper. It is believed that if a problem can be solved by an algorithm, there exists a Turing machine that solves the problem. Indeed, this is the statement of the Church–Turing thesis. Furthermore, it is known that everything that can be computed on other models of computation known to us today, such as a RAM machine, Conway's Game of Life, cellular automata or any programming language can be computed on a Turing machine. Since Turing machines are easy to analyze mathematically, and are believed to be as powerful as any other model of computation, the Turing machine is the most commonly used model in complexity theory."] 
+question: ['What is the term for a mathematical model that theoretically represents a general computing machine?'] 
+answer: ['A Turing machine']
+pred tokens: [ 4572   318   257 18069  2746   286   257  2276 14492  4572    13   632
+   318   257 16200  3335   326  7704 15968 14354]
+response:  machine is a mathematical model of a general computing machine. It is a theoretical device that manipulates symbols
+
+***********
+context: ['To measure the difficulty of solving a computational problem, one may wish to see how much time the best algorithm requires to solve the problem. However, the running time may, in general, depend on the instance. In particular, larger instances will require more time to solve. Thus the time required to solve a problem (or the space required, or any measure of complexity) is calculated as a function of the size of the instance. This is usually taken to be the size of the input in bits. Complexity theory is interested in how algorithms scale with an increase in the input size. For instance, in the problem of finding whether a graph is connected, how much more time does it take to solve a problem for a graph with 2n vertices compared to the time taken for a graph with n vertices?'] 
+question: ['What is  interested in how algorithms scale with a decrease in the input size?'] 
+answer: ['']
+pred tokens: [ 198  198   32   25  198  198  464 1917  318  326  262 5128 2546  318
+  407  257 6937   13  220  198]
+response: 
+
+A:
+
+The problem is that the input size is not a constant. 
+
+
+#### Mamba ####
+
+******
+context: ["A few years after the First Crusade, in 1107, the Normans under the command of Bohemond, Robert's son, landed in Valona and besieged Dyrrachium using the most sophisticated military equipment of the time, but to no avail. Meanwhile, they occupied Petrela, the citadel of Mili at the banks of the river Deabolis, Gllavenica (Ballsh), Kanina and Jericho. This time, the Albanians sided with the Normans, dissatisfied by the heavy taxes the Byzantines had imposed upon them. With their help, the Normans secured the Arbanon passes and opened their way to Dibra. The lack of supplies, disease and Byzantine resistance forced Bohemond to retreat from his campaign and sign a peace treaty with the Byzantines in the city of Deabolis."] 
+question: ["Who was Robert's son?"] 
+answer: ['Bohemond']
+pred tokens: [ 6911   434  3347    13  3452  3296   857    13   369   253  3347   273
+   253 13531   507     8   806  6963    13  4377]
+response:  Robert's son, Bohemond, was the son of the Normans' first king, King
+
+*******
+context: ["A function problem is a computational problem where a single output (of a total function) is expected for every input, but the output is more complex than that of a decision problem, that is, it isn't just yes or no. Notable examples include the traveling salesman problem and the integer factorization problem."] 
+question: ['What are other irrelevant examples of a function problem>'] 
+answer: ['']
+pred tokens: [  380  1159  1895   310   247 15180  1895   835   247  2014  3453   313
+  1171   247  2264  1159    10   310  3264   323]
+response:  The function problem is a computational problem where a single output (of a total function) is expected for
+
+********
+context: ['In the visual arts, the Normans did not have the rich and distinctive traditions of the cultures they conquered. However, in the early 11th century the dukes began a programme of church reform, encouraging the Cluniac reform of monasteries and patronising intellectual pursuits, especially the proliferation of scriptoria and the reconstitution of a compilation of lost illuminated manuscripts. The church was utilised by the dukes as a unifying force for their disparate duchy. The chief monasteries taking part in this "renaissance" of Norman art and scholarship were Mont-Saint-Michel, Fécamp, Jumièges, Bec, Saint-Ouen, Saint-Evroul, and Saint-Wandrille. These centres were in contact with the so-called "Winchester school", which channeled a pure Carolingian artistic tradition to Normandy. In the final decade of the 11th and first of the 12th century, Normandy experienced a golden age of illustrated manuscripts, but it was brief and the major scriptoria of Normandy ceased to function after the midpoint of the century.'] 
+question: ['Who used the church to unify themselves?'] 
+answer: ['dukes']
+pred tokens: [41757    15   187   187   510  6105   369   247  2201  2603   273  1612
+   323   253   277 41757    13   665   497   253]
+response: ukes.
+
+The church was a major source of power for the dukes, who were the
+
+*********
+context: ['Closely related fields in theoretical computer science are analysis of algorithms and computability theory. A key distinction between analysis of algorithms and computational complexity theory is that the former is devoted to analyzing the amount of resources needed by a particular algorithm to solve a problem, whereas the latter asks a more general question about all possible algorithms that could be used to solve the same problem. More precisely, it tries to classify problems that can or cannot be solved with appropriately restricted resources. In turn, imposing restrictions on the available resources is what distinguishes computational complexity from computability theory: the latter theory asks what kind of problems can, in principle, be solved algorithmically.'] 
+question: ['What two fields of theoretical computer science closely mirror computational complexity theory?'] 
+answer: ['analysis of algorithms and computability theory']
+pred tokens: [  285 15180 10454  3762    15   187   187   510   806  1953   310   247
+  2969   581    27   752   310   253 15180 10454]
+response:  and computational complexity theory.
+
+The first question is a simple one: what is the computational complexity
