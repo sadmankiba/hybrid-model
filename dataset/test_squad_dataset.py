@@ -1,7 +1,7 @@
 from squad_dataset import SquadPrerprocessing
 from transformers import AutoTokenizer
 
-def test_get_answer_start_pos():
+def test_get_answer_template_end_pos():
     tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neo-125M")
     tokenizer.pad_token = tokenizer.eos_token # for open-ended generation
     max_length = 32
@@ -11,7 +11,7 @@ def test_get_answer_start_pos():
     
     answer_template = " Answer:"
     squadprep = SquadPrerprocessing(tokenizer, max_length)
-    pos = squadprep._get_answer_tokens_end_pos(encoding, answer_template)
+    pos = squadprep._get_answer_template_end_pos(encoding, answer_template)
     assert pos == 10
 
 # text: Context: A dog Question: Dog happy? Answer: yes happy
@@ -65,8 +65,19 @@ def test_chunk_answer():
 # labels tensor([ -100,  -100,  -100,  -100,  -100,  -100,  -100,  -100,  -100,  -100,
 #          3763,  3772, 50256,  -100,  -100,  -100])
 
+def test_get_squad_causal_dataset():
+    tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neo-125M")
+    tokenizer.pad_token = tokenizer.eos_token # for open-ended generation
+    num_train_samples = 5
+    num_val_samples = 5
+    squadprep = SquadPrerprocessing(tokenizer, 256, num_train_samples=num_train_samples, num_val_samples=num_val_samples)
+    train_items, val_items = squadprep.get_squad_causal_dataset()
+    assert len(train_items) == num_train_samples
+    assert len(val_items) == num_val_samples
+    
     
 if __name__ == "__main__":
-    test_get_answer_start_pos()
+    test_get_answer_template_end_pos()
     test_chunk_answer()
+    test_get_squad_causal_dataset()
     
