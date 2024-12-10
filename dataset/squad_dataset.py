@@ -63,6 +63,9 @@ class SquadPrerprocessing:
     def _chunk_answer(self, item):
         items = []
         
+        if not item['answers']['text']:
+            return [] # evaluation metrics require a non-empty answer (reference)
+        
         context = item['context']
         question = item['question']
         answer = item['answers']['text'][0] if item['answers']['text'] else ""
