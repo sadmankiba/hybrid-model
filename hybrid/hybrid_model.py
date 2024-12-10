@@ -121,6 +121,8 @@ from collections import namedtuple
 
 import torch 
 from transformers import AutoTokenizer
+from huggingface_hub import PyTorchModelHubMixin
+
 
 from projector import ( 
     NullCombiner, NullSplitter,
@@ -137,7 +139,7 @@ Projectors = {
 }
     
 
-class HybridModel(torch.nn.Module):
+class HybridModel(torch.nn.Module, PyTorchModelHubMixin):
     """
     Currently, only designed for mamba-130m and gpt-neo-125m. 
     
