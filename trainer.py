@@ -19,6 +19,7 @@ from sklearn.metrics import classification_report, f1_score, recall_score, accur
 
 from dataset.squad_dataset import SquadDataset
 from mad.gen_data import generate_data
+from datetime import datetime
 
 TQDM_DISABLE = False
 
@@ -415,6 +416,11 @@ class Trainer:
             scores = Trainer.eval_squad(val_dl, model, tokenizer, args)
 
             print(f"epoch {epoch + 1}: train loss :: {train_loss :.3f}, eval_scores :: {scores}")
+
+        model_class = model.__class__.__name__
+        date_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filepath = f"models/{model_class}_{date_time}.pt"
+        torch.save(model.state_dict(), filepath)
     
     @staticmethod 
     def eval_mad(model, eval_dl):

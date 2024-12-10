@@ -8,11 +8,17 @@ Use Wandb.
 
 ## SQUAD 
 
+P100/ T4
+
 **Pretrained Mamba**
 
 Slow path 
 * Evaluaton - 30s/step, 8GB for batch size 2  
-* Training - 30s/step, 8GB for batch size 2
+* Training - 45s/step, 8GB for batch size 2
+
+Fast path 
+* Eval - 4s/step, 3GB for batch size 2 
+* Train - 1s/step, 3GB for batch size 2
 
 **Pretrained GPT-Neo**
 
