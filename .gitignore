@@ -1,4 +1,5 @@
 __pycache__/
 models/*.ptr
+models/*.pt
 data/
 log/
