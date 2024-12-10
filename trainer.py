@@ -123,17 +123,18 @@ class Trainer:
                     batch['question'], batch['answer']
             
             # find next token pos in each seq
-            nxt_token_pos = torch.argmax((b_mask == 0).int(), dim=1)
+            nxt_token_pos = torch.argmax((b_mask == 0).int(), dim=1) # (batch_size,)
             
-            b_ids = b_ids.to(model.device)
-            b_mask = b_mask.to(model.device)
+            b_ids = b_ids.to(model.device) # (batch_size, seq_len)
+            b_mask = b_mask.to(model.device) # (batch_size, seq_len)
             
+            # generate model predictions
             all_preds = []
             with torch.no_grad():
                 for _ in range(args.max_new_tokens):
                     output = model(input_ids=b_ids, attention_mask=b_mask) 
                     logits = output.logits.detach().cpu().numpy() # (batch_size, seq_len, vocab_size)
-                    last_logits = logits[:, -1, :]  # (batch_size, vocab_size)
+                    last_logits = logits[range(args.batch_size), (nxt_token_pos - 1), :]  # (batch_size, vocab_size)
                     preds = np.argmax(last_logits, axis=-1) # (batch_size,)
                     all_preds.append(preds)
                     if np.all(preds == tokenizer.eos_token_id):
@@ -145,6 +146,7 @@ class Trainer:
                     nxt_token_pos += 1
                     nxt_token_pos = torch.clamp(nxt_token_pos, max=args.max_length - 1)
 
+            # form response and label sentences
             all_preds = np.array(all_preds).T  # (batch_size, max_new_tokens)
             responses = tokenizer.batch_decode(all_preds, skip_special_tokens=True) # (batch_size,)
             print_all = True
@@ -159,6 +161,7 @@ class Trainer:
             labels_first_valid_pos = torch.argmax((b_labels != -100).int(), dim=1)
             print("labels_first_valid_pos:", labels_first_valid_pos)
             pred_indices = (valid_indices[0].clone(), valid_indices[1].clone())
+            print("pred_indices:", pred_indices)
             for i in range(args.batch_size):
                 mask = (pred_indices[0] == i)
                 pred_indices[1][mask] = pred_indices[1][mask] - labels_first_valid_pos[i]
@@ -169,6 +172,7 @@ class Trainer:
             print("b_labels_valid:", b_labels_valid)
             print("preds_valid:", preds_valid)
 
+            # compute metrics
             acc = evaluate.load('accuracy')
             bleu = evaluate.load('bleu')
             rouge = ROUGEScore()

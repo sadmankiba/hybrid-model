@@ -261,7 +261,7 @@ def eval_squad(args, model_type: str):
         model = HybridModel(trans_model, mamba_model, args.proj_type, args.num_hybrid_blocks)
     
     squad_ds = SquadDataset(tokenizer, args.max_length, split="validation", num_samples=args.eval_size)
-    squad_val_dl = DataLoader(squad_ds, shuffle=True, batch_size=1) # make individual predictions
+    squad_val_dl = DataLoader(squad_ds, shuffle=True, batch_size=args.batch_size) # make individual predictions
     Trainer.eval_squad(squad_val_dl, model, tokenizer, args)
 
 ### Parsing ###

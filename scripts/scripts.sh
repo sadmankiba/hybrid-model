@@ -82,4 +82,5 @@ python3 main.py --run_mad_mamform  --task 'in-context-recall' --vocab_size 16  -
 
 # Eval SQUAD
 
-python3 main.py --run_eval_squad --batch_size 4 --max_length 256 --max_new_tokens 20 --eval_size 100
+python3 main.py --task eval_squad --model transformers --batch_size 4 --max_length 256 --max_new_tokens 20 --eval_size 100
+
