@@ -14,6 +14,12 @@ class Args:
         self.batch_size = 4
         self.max_new_tokens = 20
         self.eval_size = 20
+        self.train_size = 20
+        self.epochs = 1
+        self.use_amp = True
+        self.lr = 5e-4
+        self.weight_decay = 0.01
+        self.log_interval = 3
 
 @pytest.fixture
 def model_and_tokenizer():
@@ -23,17 +29,25 @@ def model_and_tokenizer():
     return model, tokenizer
 
 @pytest.fixture
-def squad_dataloader(model_and_tokenizer):
+def squad_val_dataloader(model_and_tokenizer):
     args = Args()
     model, tokenizer = model_and_tokenizer
     val_ds = SquadDataset(tokenizer, args.max_length, split="validation", num_samples=args.eval_size)
     val_dl = DataLoader(val_ds, shuffle=True, batch_size=args.batch_size)
     return val_dl
 
+@pytest.fixture
+def squad_train_dataloader(model_and_tokenizer):
+    args = Args()
+    model, tokenizer = model_and_tokenizer
+    train_ds = SquadDataset(tokenizer, args.max_length, split="train", num_samples=args.eval_size)
+    train_dl = DataLoader(train_ds, shuffle=True, batch_size=args.batch_size)
+    return train_dl
+
 def test_eval_squad(model_and_tokenizer, squad_dataloader):
     model, tokenizer = model_and_tokenizer
     args = Args()
-    results = Trainer.eval_squad(squad_dataloader, model, tokenizer, args)
+    results = Trainer.eval_squad(squad_val_dataloader, model, tokenizer, args)
     print("results:", results)
     assert "token_exact_match" in results
     assert "bleu" in results
@@ -69,3 +83,20 @@ def test_eval_squad(model_and_tokenizer, squad_dataloader):
 # bleus: [0.0, 0.0, 0.0, 0.0, 0.0]
 # rouges: [tensor(0.), tensor(0.), tensor(0.), tensor(0.), tensor(0.)]
 # results: {'token_exact_match': 0.03151515151515152, 'bleu': 0.0, 'rouge': tensor(0.)}
+
+def test_train_squad(model_and_tokenizer):
+    model, tokenizer = model_and_tokenizer
+    args = Args()
+    Trainer.train_squad(model, tokenizer, args)
+    
+#     b_labels: tensor([[   25, 37361, 32682,  ...,  -100,  -100,  -100],
+#         [   25, 37361, 32682,  ...,  -100,  -100,  -100],
+#         [   25, 37361, 32682,  ...,  -100,  -100,  -100],
+#         [   25, 37361, 32682,  ...,  -100,  -100,  -100]], device='cuda:0')
+# preds: tensor([[   25, 50093, 32682,  ..., 42076, 25418, 42076],
+#         [   25, 50093, 32682,  ...,  6303,  4592,  6303],
+#         [   25, 50093, 32682,  ..., 36670, 36670, 36670],
+#         [   25, 50093, 32682,  ..., 17886, 17886, 17886]], device='cuda:0')
+# loss: tensor(2.1641, device='cuda:0', dtype=torch.float16,
+#        grad_fn=<NllLoss2DBackward0>)
+    

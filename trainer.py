@@ -149,28 +149,16 @@ class Trainer:
             # form response and label sentences
             all_preds = np.array(all_preds).T  # (batch_size, max_new_tokens)
             responses = tokenizer.batch_decode(all_preds, skip_special_tokens=True) # (batch_size,)
-            print_all = True
-            if print_all:
-                print(f"context: {b_ctxt} \nquestion: {b_ques} \nanswer: {b_ans}")
-                print("labels:", b_labels)
-                print("all_preds:", all_preds)
-                print("response:", responses)
 
             valid_indices = (b_labels != -100).nonzero(as_tuple=True) # tuple of two tensors
-            print("valid_indices:", valid_indices)
             labels_first_valid_pos = torch.argmax((b_labels != -100).int(), dim=1)
-            print("labels_first_valid_pos:", labels_first_valid_pos)
             pred_indices = (valid_indices[0].clone(), valid_indices[1].clone())
-            print("pred_indices:", pred_indices)
             for i in range(args.batch_size):
                 mask = (pred_indices[0] == i)
                 pred_indices[1][mask] = pred_indices[1][mask] - labels_first_valid_pos[i]
-            print("pred_indices:", pred_indices)
             
             b_labels_valid = b_labels[valid_indices]
-            preds_valid = all_preds[pred_indices]
-            print("b_labels_valid:", b_labels_valid)
-            print("preds_valid:", preds_valid)
+            preds_valid = all_preds[pred_indices]  # length is same as b_labels_valid
 
             # compute metrics
             acc = evaluate.load('accuracy')
@@ -179,10 +167,7 @@ class Trainer:
             token_exact_matches.append(acc.compute(references=b_labels_valid, predictions=preds_valid)['accuracy'])
             bleus.append(bleu.compute(references=b_ans, predictions=responses)['bleu'])
             rouges.append(rouge(responses, b_ans)['rougeL_fmeasure'])
-        
-        print("token_exact_matches:", token_exact_matches)
-        print("bleus:", bleus)
-        print("rouges:", rouges)
+
         return {
             "token_exact_match": sum(token_exact_matches) / len(token_exact_matches), 
             "bleu": sum(bleus) / len(bleus), 
@@ -392,18 +377,19 @@ class Trainer:
             train_loss = 0
             num_batches = 0
             for step, batch in enumerate(tqdm(train_dl, desc=f'train-{epoch}', disable=TQDM_DISABLE)):
-                b_ids, b_mask, b_labels = batch['token_ids'], batch['attention_mask'], batch['labels']
+                b_ids, b_mask, b_labels = batch['input_ids'], batch['attention_mask'], batch['labels']
 
                 b_ids = b_ids.to(device)
                 b_mask = b_mask.to(device)
-                b_labels = b_labels.to(device)
+                b_labels = b_labels.to(device) # (batch_size, seq_len)
                 
                 with torch.autocast(device_type=str(device), dtype=torch.float16, enabled=args.use_amp):
                     output = model(input_ids=b_ids, attention_mask=b_mask) 
-                    logits = output.logits 
+                    logits = output.logits  # (batch_size, seq_len, vocab_size)
                 
-                loss = F.cross_entropy(logits, b_labels, reduction='mean')
-
+                preds = torch.argmax(logits, dim=-1) # (batch_size, seq_len)
+                loss = F.cross_entropy(logits.permute(0, 2, 1), b_labels, reduction='mean', ignore_index=-100)
+                
                 if args.use_amp:
                     scaler.scale(loss).backward()
                     scaler.step(optimizer)
@@ -418,21 +404,17 @@ class Trainer:
                 num_batches += 1
                 
                 if args.log_interval > 0 and step % args.log_interval == 0:
-                    dev_acc, dev_f1, *_ = Trainer.eval_squad(val_dl, model)
-                    print(f"epoch {epoch + 1}, step {step}: train loss :: {loss.item() :.3f}, dev acc :: {dev_acc :.3f}")
+                    scores = Trainer.eval_squad(val_dl, model, tokenizer, args)
+                    print(f"epoch {epoch + 1}, step {step}: train loss :: {loss.item() :.3f}, eval_scores :: {scores}")
 
                 if (epoch + step / len(train_dl)) >= args.epochs:
                     break
 
             train_loss = train_loss / (num_batches)
 
-            dev_acc, dev_f1, *_ = Trainer.model_eval(val_dl, model, device)
+            scores = Trainer.eval_squad(val_dl, model, tokenizer, args)
 
-            if dev_acc > best_dev_acc:
-                best_dev_acc = dev_acc
-                #Trainer.save_model(model, optimizer, args, config, args.filepath)
-
-            print(f"epoch {epoch + 1}: train loss :: {train_loss :.3f}, train acc :: {train_acc :.3f}, dev acc :: {dev_acc :.3f}")
+            print(f"epoch {epoch + 1}: train loss :: {train_loss :.3f}, eval_scores :: {scores}")
     
     @staticmethod 
     def eval_mad(model, eval_dl):

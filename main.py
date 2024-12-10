@@ -245,9 +245,26 @@ def train_imdb(model_type: str):
         model = get_hybrid_seq_initd(model_config)
     Trainer.train(model, 'EleutherAI/gpt-neo-125M', "imdb", model.parameters(), imdb_config)
 
+
+def train_squad_pretrained(model_type: str):
+    if model_type == "transformers":
+        model = get_gpt_neo_causal()
+        tokenizer = get_gpt_neo_tokenizer()
+    elif model_type == "mamba":
+        model = get_mamba_causal()
+        tokenizer = get_mamba_tokenizer()
+    elif model_type == "hybrid":
+        trans_model = get_gpt_neo_causal()
+        mamba_model = get_mamba_causal()
+        tokenizer = get_gpt_neo_tokenizer()
+        model = HybridModel(trans_model, mamba_model, args.proj_type, args.num_hybrid_blocks)
+        
+    Trainer.train_squad(model, tokenizer, args)
+    
+
 ### Eval functions ###
 
-def eval_squad(args, model_type: str):
+def eval_squad_pretrained(args, model_type: str):
     if model_type == "transformers":
         model = get_gpt_neo_causal()
         tokenizer = get_gpt_neo_tokenizer()
@@ -288,7 +305,7 @@ def parse_args():
     
     # Which models and tasks to run
     parser.add_argument("--task", type=str, default="seqclass", 
-        help="Task to run. pret_seqclass | initd_seqclass | mad | initd_imdb | eval_squad") 
+        help="Task to run. pret_seqclass | initd_seqclass | mad | initd_imdb | eval_squad | tune_squad") 
     parser.add_argument("--model", type=str, default="transformers", 
         help="Model to run. transformers | mamba | hybrid | mamform")  
     
@@ -356,7 +373,9 @@ if __name__ == "__main__":
     elif args.task == "initd_imdb":
         train_imdb(args.model)
     elif args.task == "eval_squad":
-        eval_squad(args, args.model)
+        eval_squad_pretrained(args, args.model)
+    elif args.task == "tune_squad":
+        train_squad_pretrained(args.model)
     
     if results and args.output_file:
         with open(args.output_file, 'a') as f:

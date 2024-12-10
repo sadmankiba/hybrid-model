@@ -104,7 +104,7 @@ class SquadPrerprocessing:
                 'context': context,
                 'question': question,
                 'answer': answer,
-                'input_ids': input_ids,
+                'input_ids': input_ids.type(torch.LongTensor),
                 'attention_mask': attention_mask,
                 'labels': labels,
             })
