@@ -109,7 +109,7 @@ class SquadPrerprocessing:
                 'answer': answer,
                 'input_ids': input_ids.type(torch.LongTensor),
                 'attention_mask': attention_mask,
-                'labels': labels,
+                'labels': labels.type(torch.LongTensor),
             })
             
             cur_pos += 1
