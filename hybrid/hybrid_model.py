@@ -1,5 +1,5 @@
 # import torch 
-# from transformers import AutoTokenizer
+from transformers import  AutoModel, MambaModel
 # from projector import Combiner, Splitter
 # from torch import nn
 # class HybridModel(nn.Module):
@@ -124,7 +124,7 @@ from transformers import AutoTokenizer
 from huggingface_hub import PyTorchModelHubMixin
 
 
-from projector import ( 
+from .projector  import ( 
     NullCombiner, NullSplitter,
     ResidualCombiner, ResidualSplitter,
     GatedResidualCombiner, GatedResidualSplitter,
@@ -148,6 +148,8 @@ class HybridModel(torch.nn.Module, PyTorchModelHubMixin):
     """
     def __init__(self, transformer_model, mamba_model, proj_type, n_hybrid_blocks=12):
         super(HybridModel, self).__init__()
+        transformer_model = AutoModel.from_pretrained(transformer_model)
+        mamba_model = MambaModel.from_pretrained(mamba_model)
         self.trans_model = transformer_model
         self.mamba_model = mamba_model
         self.n_blocks = n_hybrid_blocks
@@ -231,11 +233,15 @@ class HybridModel(torch.nn.Module, PyTorchModelHubMixin):
 
 
 class HybridModelTextClassification(torch.nn.Module):
-    def __init__(self, transformer_model, mamba_model, proj_type, n_hybrid_blocks, n_classes):
+    def __init__(self, transformer_model=None, mamba_model=None, proj_type=None, n_hybrid_blocks=None, n_classes=2,path=None):
         super(HybridModelTextClassification, self).__init__()
-        self.hybrid_model = HybridModel(transformer_model, mamba_model, proj_type, n_hybrid_blocks)
+        if path:
+            print("====")
+            self.hybrid_model =  HybridModel.from_pretrained(path)
+        else:
+            self.hybrid_model = HybridModel(transformer_model, mamba_model, proj_type, n_hybrid_blocks)
         self.cls_head = torch.nn.Linear(self.hybrid_model.proj_dim, n_classes)
-        
+            
     def forward(self, input_ids, attention_mask=None, labels=None):
         output = self.hybrid_model(input_ids, attention_mask)
         last_hidden_states = output.hidden_states[-1] 
@@ -250,6 +256,7 @@ class HybridModelTextClassification(torch.nn.Module):
             loss_fct = torch.nn.CrossEntropyLoss()
             loss = loss_fct(logits, labels)
             return ClassificationOutput(loss=loss, logits=logits)
+        
         
         
 class MambaFormer(torch.nn.Module):

@@ -24,7 +24,7 @@ class HybridDataset(Dataset):
     def __init__(self, dataset, args, tokenizer_id='EleutherAI/gpt-neo-125M', n_samples=None):
         self.dataset = dataset
         self.p = args
-        self.tokenizer =  AutoTokenizer.from_pretrained(tokenizer_id)
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_id)
         self.tokenizer.pad_token = self.tokenizer.eos_token
 
     def __len__(self):
@@ -34,13 +34,12 @@ class HybridDataset(Dataset):
         ele = self.dataset[idx]
         return ele
 
-    def pad_data(self, data):
+    def pad_data(self, data, max_length=100):
         
         sents = [x["text"] for x in data]
         labels = [x["label"] for x in data]
         
-        
-        encoding = self.tokenizer(sents, return_tensors='pt', padding=True, truncation=True)
+        encoding = self.tokenizer(sents, return_tensors='pt', padding=True, truncation=True, max_length=max_length)
         token_ids = torch.LongTensor(encoding['input_ids'])
         attention_mask = torch.LongTensor(encoding['attention_mask'])
         labels = torch.LongTensor(labels)
@@ -136,9 +135,6 @@ class Trainer:
             
         return accuracies.mean(), exact_matches(), bleus.mean()
             
-            
-            
-    
     @staticmethod
     def train(model, tokenizer_id, dataset_name, param_list, args):
         device  = torch.device(f"cuda:{args.device}") if args.use_gpu else torch.device('cpu') 
