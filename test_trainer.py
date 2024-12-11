@@ -84,6 +84,16 @@ def test_eval_squad(model_and_tokenizer, squad_dataloader):
 # rouges: [tensor(0.), tensor(0.), tensor(0.), tensor(0.), tensor(0.)]
 # results: {'token_exact_match': 0.03151515151515152, 'bleu': 0.0, 'rouge': tensor(0.)}
 
+# _labels_valid: tensor([6181,  884,  394,  285, 1903,  394,  884,  394,  285,  884,  394,  285,                                                    | 1/2 [00:05<00:05,  5.00s/it]
+#         1903])
+# preds_valid: tensor([ 6181,   394, 14020,    15, 37741,    27,  5331,    15, 37741,  1903,
+#           394, 14020,    15])
+# b_ans: ['France', '10th and 11th centuries', '10th and 11th centuries', '10th and 11th centuries']
+# responses: [' France. Answer: France. Question: In what country is the Normandy region located? Answer:', 'th centuries. Answer: 10th and 11th centuries. Question: When were the Normans in', ' century. Answer: 10,000 years ago. Question: When were the Normans in Normandy', ' 11th centuries. Answer: 10th and 11th centuries. Question: When were the Normans']
+# acc [0.0, 0.15384615384615385]
+# bleu [0.035792807886387674, 0.07406842148934378]
+# rouge [tensor(0.1811), tensor(0.2784)]
+
 def test_train_squad(model_and_tokenizer):
     model, tokenizer = model_and_tokenizer
     args = Args()

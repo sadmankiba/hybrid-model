@@ -149,7 +149,7 @@ class Trainer:
                     nxt_token_pos = torch.clamp(nxt_token_pos, max=args.max_length - 1)
 
             # form response and label sentences
-            all_preds = np.array(all_preds).T  # (batch_size, max_new_tokens)
+            all_preds = torch.tensor(np.array(all_preds)).T  # (batch_size, max_new_tokens)
             responses = tokenizer.batch_decode(all_preds, skip_special_tokens=True) # (batch_size,)
 
             valid_indices = (b_labels != -100).nonzero(as_tuple=True) # equal-len tuple of indices along two axis, 
@@ -163,7 +163,7 @@ class Trainer:
                 mask = (pred_indices[0] == i)
                 pred_indices[1][mask] = pred_indices[1][mask] - labels_first_valid_pos[i]
             
-            if max(pred_indices[1]) > all_preds.shape[1]: # pad all_preds
+            if max(pred_indices[1]) >= all_preds.shape[1]: # pad all_preds
                 all_preds = torch.concat([
                     all_preds, 
                     torch.full((all_preds.shape[0], max(pred_indices[1]) - all_preds.shape[1] + 1), 
@@ -177,8 +177,17 @@ class Trainer:
             bleu = evaluate.load('bleu')
             rouge = ROUGEScore()
             token_exact_matches.append(acc.compute(references=b_labels_valid, predictions=preds_valid)['accuracy'])
-            bleus.append(bleu.compute(references=b_ans, predictions=responses)['bleu'])
             rouges.append(rouge(responses, b_ans)['rougeL_fmeasure'])
+            
+            batch_bleus = 0
+            for i in range(len(b_ans)):    
+                if b_ans[i] == "" or responses[i] == "":
+                    batch_bleus += int(b_ans[i] == responses[i])
+                    continue
+                
+                batch_bleus += bleu.compute(references=[b_ans[i]], predictions=[responses[i]])['bleu']
+            
+            bleus.append(batch_bleus / len(b_ans))
 
         return {
             "token_exact_match": sum(token_exact_matches) / len(token_exact_matches), 
