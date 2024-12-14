@@ -26,6 +26,7 @@ class HybridDataset(Dataset):
         self.p = args
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_id)
         self.tokenizer.pad_token = self.tokenizer.eos_token
+        
 
     def __len__(self):
         return len(self.dataset)
@@ -170,7 +171,8 @@ class Trainer:
         use_amp = True   # Mixed Precision Training reduces memory usage
         scaler = torch.amp.GradScaler(enabled=use_amp)
         model = model.to(device)
-        optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+        #model.config.pad_token_id = train_dataset.tokenizer.pad_token_id
+        optimizer = optim.AdamW(param_list, lr=args.lr, weight_decay=args.weight_decay)
         ## run for the specified number of epochs
         best_dev_acc = 0
         print("==Started training====")

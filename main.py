@@ -151,7 +151,7 @@ def get_gpt_neo_seq_initd(model_config):
             num_labels=model_config.num_labels, id2label=id2label, label2id=label2id)
     model = GPTNeoForSequenceClassification(config)
     model.score = torch.nn.Linear(in_features=128, out_features=2)
-    #print(model)
+    print(model)
     #exit()
     return model
 
@@ -249,6 +249,9 @@ def train_imdb_pretrained(model_type: str):
         model = MambaTextClassification("state-spaces/mamba-130m-hf","state-spaces/mamba-130m-hf", 2)
     elif model_type == "hybrid":
         model = HybridModelTextClassification(path="fahad-touseef/manticore-hybrid-gptneo-mamba")
+        # for param in model.hybrid_model.parameters():
+        #     param.requires_grad = False
+    print(model)
     Trainer.train(model, 'EleutherAI/gpt-neo-125M' if model_type!= "mamba" else "state-spaces/mamba-130m-hf", "imdb", model.parameters(), imdb_config)
 
 
@@ -261,11 +264,11 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Train a transformer model with Trainer")
     # Training
     parser.add_argument("--epochs", type=float, help="Number of training epochs")
-    parser.add_argument("--lr", type=float, help="Learning rate for training")
-    parser.add_argument("--weight_decay", type=float, help="Weight decay for optimizer")
+    parser.add_argument("--lr", type=float, default=5e-4, help="Learning rate for training")
+    parser.add_argument("--weight_decay", type=float, default=0.01, help="Weight decay for optimizer")
     parser.add_argument("--filepath", type=str, default="models/saved.ptr", help="Path to save the trained model")
-    parser.add_argument("--batch_size", type=int, help="Batch size for training")
-    parser.add_argument("--log_interval", type=int, help="Log training loss every n steps")
+    parser.add_argument("--batch_size", type=int, default=16, help="Batch size for training")
+    parser.add_argument("--log_interval", type=int, default=0, help="Log training loss every n steps")
     parser.add_argument("--train_size", type=int, default=0, help="Number of training examples")
     parser.add_argument("--eval_size", type=int, default=0, help="Number of dev examples")
     parser.add_argument("--use_gpu", type=bool, default=True, help="Use GPU?")
@@ -282,9 +285,9 @@ def parse_args():
     parser.add_argument("--run_mad_trans", action="store_true", help="Run the MAD tasks with Transformers")
     parser.add_argument("--run_mad_mamba", action="store_true", help="Run the MAD tasks with Mamba")
     parser.add_argument("--run_mad_hybrid", action="store_true", help="Run the MAD tasks with Hybrid model")
-    parser.add_argument("--run_imdb_hybrid", action="store_true", help="Run the IMDB dataset with Hybrid model")
-    parser.add_argument("--run_imdb_trans", action="store_true", help="Run the IMDB dataset with Transformer model")
-    parser.add_argument("--run_imdb_mamba", action="store_true", help="Run the IMDB dataset with Mamba model")
+    parser.add_argument("--run_imdb_hybrid", action="store_true", help="Run the IMDB dataset with Hybrid model with newly Initalized weight")
+    parser.add_argument("--run_imdb_trans", action="store_true", help="Run the IMDB dataset with Transformer model with newely initialized weight")
+    parser.add_argument("--run_imdb_mamba", action="store_true", help="Run the IMDB dataset with Mamba model with newely initalized weight")
     parser.add_argument("--run_mad_mamform", action="store_true", help="Run the MAD tasks with MambaFormer model")
     parser.add_argument("--run_mamba_pretrained", action="store_true", help="Run IMDB on pretrained MAMBA")
     parser.add_argument("--run_transformers_pretrained", action="store_true", help="Run Transformers from pretrained")

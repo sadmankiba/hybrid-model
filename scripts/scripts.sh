@@ -79,3 +79,8 @@ python3 main.py --run_mad_mamform  --task 'in-context-recall' --vocab_size 16  -
     --num_train_examples 4096 --num_test_examples 256 \
     --num_trans_layers 2 --num_mamba_layers 3 --hidden_size 64 --num_heads 4 --epochs 20 --batch_size 32 \
     --log_interval 20 --lr 5e-4
+
+
+#pretraine hybrid 
+python3 main.py --run_hybrid_pretrained --epochs 10 --device 4 --lr 0.00001
+

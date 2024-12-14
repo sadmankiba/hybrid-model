@@ -124,7 +124,7 @@ from transformers import AutoTokenizer
 from huggingface_hub import PyTorchModelHubMixin
 
 
-from .projector  import ( 
+from projector  import ( 
     NullCombiner, NullSplitter,
     ResidualCombiner, ResidualSplitter,
     GatedResidualCombiner, GatedResidualSplitter,
@@ -148,8 +148,10 @@ class HybridModel(torch.nn.Module, PyTorchModelHubMixin):
     """
     def __init__(self, transformer_model, mamba_model, proj_type, n_hybrid_blocks=12):
         super(HybridModel, self).__init__()
+        
         transformer_model = AutoModel.from_pretrained(transformer_model)
         mamba_model = MambaModel.from_pretrained(mamba_model)
+        
         self.trans_model = transformer_model
         self.mamba_model = mamba_model
         self.n_blocks = n_hybrid_blocks
@@ -170,7 +172,7 @@ class HybridModel(torch.nn.Module, PyTorchModelHubMixin):
         print(transformer_model.config.vocab_size)
         self.wte = torch.nn.Embedding(transformer_model.config.vocab_size, self.proj_dim)
         self.lm_head = torch.nn.Linear(self.proj_dim, transformer_model.config.vocab_size, bias = False)
-        self.layer_norm = torch.nn.LayerNorm((self.proj_dim,), eps=1e-05, elementwise_affine=True)
+        #self.layer_norm = torch.nn.LayerNorm((self.proj_dim,), eps=1e-05, elementwise_affine=True)
 
         # Weight tying
         self.lm_head.weight = self.wte.weight 
@@ -213,7 +215,7 @@ class HybridModel(torch.nn.Module, PyTorchModelHubMixin):
                 mamba_input_embeds = mamba_layers[mamba_layers_per_block * i + k](mamba_input_embeds,cache_position=attention_mask)
             
             combined_emb = self.combiners[i](trans_input_emb, mamba_input_embeds)
-            combined_emb = self.layer_norm(combined_emb)   # Apply LayerNorm
+            #combined_emb = self.layer_norm(combined_emb)   # Apply LayerNorm
             hidden_states += (combined_emb, )
         #print( "combined", combined_emb.shape)
         #hidden_concate = torch.cat(hidden_states,dim=1)
@@ -236,7 +238,6 @@ class HybridModelTextClassification(torch.nn.Module):
     def __init__(self, transformer_model=None, mamba_model=None, proj_type=None, n_hybrid_blocks=None, n_classes=2,path=None):
         super(HybridModelTextClassification, self).__init__()
         if path:
-            print("====")
             self.hybrid_model =  HybridModel.from_pretrained(path)
         else:
             self.hybrid_model = HybridModel(transformer_model, mamba_model, proj_type, n_hybrid_blocks)
