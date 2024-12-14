@@ -248,7 +248,7 @@ def train_imdb_pretrained(model_type: str):
     elif model_type == "mamba":
         model = MambaTextClassification("state-spaces/mamba-130m-hf","state-spaces/mamba-130m-hf", 2)
     elif model_type == "hybrid":
-        model = HybridModelTextClassification(path="fahad-touseef/manticore-hybrid-gptneo-mamba")
+        model = HybridModelTextClassification(path="RioHassen/manticore-hybrid-gptneo-mamba")
         # for param in model.hybrid_model.parameters():
         #     param.requires_grad = False
     print(model)
