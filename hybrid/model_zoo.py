@@ -19,6 +19,10 @@ def get_gpt_neo_causal():
 def get_gpt_neo_tokenizer():
     return AutoTokenizer.from_pretrained(gpt_neo_model_checkpoint)
 
+# gpt-neo tokenizer(text = None, add_special_tokens = True, padding = False, truncation = None, max_length = None, 
+# stride = 0, is_split_into_words = False, pad_to_multiple_of = None, padding_side = None, return_tensors = None, 
+# return_token_type_ids = None, verbose = True, **kwargs) -> transformers.tokenization_utils_base.BatchEncoding>
+
 def get_mamba_causal():
     mamba_model = MambaForCausalLM.from_pretrained(mamba_model_checkpoint)
     return mamba_model
@@ -26,8 +30,13 @@ def get_mamba_causal():
 def get_mamba_tokenizer():
     return AutoTokenizer.from_pretrained(mamba_model_checkpoint)
 
+# default
+# mamba_tokenizer(text: = None, add_special_tokens = True, padding = False, truncation = None, max_length = None, stride = 0, 
+# is_split_into_words = False, pad_to_multiple_of = None, padding_side = None, return_tensors = None, return_token_type_ids = None, 
+# return_attention_mask = None, verbose: bool = True, **kwargs) -> transformers.tokenization_utils_base.BatchEncoding
+
 def test_mamba_model():
-    mamba_tokenizer = AutoTokenizer.from_pretrained("state-spaces/mamba-130m-hf")
+    mamba_tokenizer = AutoTokenizer.from_pretrained("state-spaces/mamba-130m-hf")   
     input_ids = mamba_tokenizer("Hey how are you doing?", return_tensors= "pt")["input_ids"]
 
     out = get_mamba_causal().generate(input_ids, max_new_tokens=10)

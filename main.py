@@ -292,6 +292,7 @@ def parse_args():
     parser.add_argument("--filepath", type=str, default="models/saved.ptr", help="Path to save the trained model")
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size for training")
     parser.add_argument("--log_interval", type=int, default=0, help="Log training loss every n steps")
+    parser.add_argument("--eval_interval", type=int, default=0, help="Run evaluation every n steps")
     parser.add_argument("--train_size", type=int, default=0, help="Number of training examples")
     parser.add_argument("--eval_size", type=int, default=0, help="Number of dev examples")
     parser.add_argument("--max_length", type=int, default=256, help="Max length of input sequence")
@@ -299,6 +300,7 @@ def parse_args():
     parser.add_argument('--device', type=int, default=0)
     parser.add_argument("--use_amp", type=bool, default=True, help="Use automatic mixed precision")
     parser.add_argument("--output_file", type=str, default="results.txt", help="File to save results")
+    parser.add_argument("--save_model", type=bool, default=False, help="Save the model")
     
     # Inference 
     parser.add_argument("--max_new_tokens", type=int, default=20, help="Max new tokens to generate")

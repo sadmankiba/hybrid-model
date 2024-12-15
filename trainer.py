@@ -1,5 +1,6 @@
 import random
 import math
+import os
 from collections import namedtuple
 from types import SimpleNamespace
 
@@ -136,7 +137,7 @@ class Trainer:
                     output = model(input_ids=b_ids, attention_mask=b_mask) 
                     logits = output.logits.detach().cpu().numpy() # (batch_size, seq_len, vocab_size)
                     last_logits = logits[range(args.batch_size), (nxt_token_pos - 1), :]  # (batch_size, vocab_size)
-                    preds = np.argmax(last_logits, axis=-1) # (batch_size,)
+                    preds = np.argmax(last_logits, axis=-1) # (batch_size,). dtype int64
                     all_preds.append(preds)
                     if np.all(preds == tokenizer.eos_token_id):
                         break
@@ -148,17 +149,27 @@ class Trainer:
                     nxt_token_pos = torch.clamp(nxt_token_pos, max=args.max_length - 1)
 
             # form response and label sentences
-            all_preds = np.array(all_preds).T  # (batch_size, max_new_tokens)
+            all_preds = torch.tensor(np.array(all_preds)).T  # (batch_size, max_new_tokens)
             responses = tokenizer.batch_decode(all_preds, skip_special_tokens=True) # (batch_size,)
 
-            valid_indices = (b_labels != -100).nonzero(as_tuple=True) # tuple of two tensors
-            labels_first_valid_pos = torch.argmax((b_labels != -100).int(), dim=1)
+            valid_indices = (b_labels != -100).nonzero(as_tuple=True) # equal-len tuple of indices along two axis, 
+                                                                      # 2nd axis contains consecutive indices
+            b_labels_valid = b_labels[valid_indices]
+            
+            # get predicted tokens at label positions 
+            labels_first_valid_pos = torch.argmax((b_labels != -100).int(), dim=1) # (batch_size,)
             pred_indices = (valid_indices[0].clone(), valid_indices[1].clone())
             for i in range(args.batch_size):
                 mask = (pred_indices[0] == i)
                 pred_indices[1][mask] = pred_indices[1][mask] - labels_first_valid_pos[i]
             
-            b_labels_valid = b_labels[valid_indices]
+            if max(pred_indices[1]) >= all_preds.shape[1]: # pad all_preds
+                all_preds = torch.concat([
+                    all_preds, 
+                    torch.full((all_preds.shape[0], max(pred_indices[1]) - all_preds.shape[1] + 1), 
+                        tokenizer.eos_token_id, dtype=torch.long)
+                ], dim=1)
+
             preds_valid = all_preds[pred_indices]  # length is same as b_labels_valid
 
             # compute metrics
@@ -166,13 +177,22 @@ class Trainer:
             bleu = evaluate.load('bleu')
             rouge = ROUGEScore()
             token_exact_matches.append(acc.compute(references=b_labels_valid, predictions=preds_valid)['accuracy'])
-            bleus.append(bleu.compute(references=b_ans, predictions=responses)['bleu'])
             rouges.append(rouge(responses, b_ans)['rougeL_fmeasure'])
+            
+            batch_bleus = 0
+            for i in range(len(b_ans)):    
+                if b_ans[i] == "" or responses[i] == "":
+                    batch_bleus += int(b_ans[i] == responses[i])
+                    continue
+                
+                batch_bleus += bleu.compute(references=[b_ans[i]], predictions=[responses[i]])['bleu']
+            
+            bleus.append(batch_bleus / len(b_ans))
 
         return {
             "token_exact_match": sum(token_exact_matches) / len(token_exact_matches), 
             "bleu": sum(bleus) / len(bleus), 
-            "rouge": sum(rouges) / len(rouges)
+            "rouge_l_f1": sum(rouges) / len(rouges)
         }   
 
 
@@ -370,8 +390,15 @@ class Trainer:
         model = model.to(device)
         optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
         
+        # make save directory 
+        model_class = model.__class__.__name__
+        date_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+        save_dir = f"models/{model_class}_{date_time}"
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        
         ## train
-        best_dev_acc = 0
+        best_rouge_l_f1 = -1
         print("==Started training====")
         for epoch in range(math.ceil(args.epochs)):
             model.train()
@@ -405,22 +432,24 @@ class Trainer:
                 num_batches += 1
                 
                 if args.log_interval > 0 and step % args.log_interval == 0:
+                    print(f"epoch {epoch + 1}, step {step}: train loss :: {loss.item() :.3f}")
+                
+                if args.eval_interval > 0 and step % args.eval_interval == 0:
                     scores = Trainer.eval_squad(val_dl, model, tokenizer, args)
-                    print(f"epoch {epoch + 1}, step {step}: train loss :: {loss.item() :.3f}, eval_scores :: {scores}")
+                    print(f"epoch {epoch + 1}, step {step}: eval_scores :: {scores}")
+                    
+                    if scores["rouge_l_f1"] > best_rouge_l_f1:
+                        best_rouge_l_f1 = scores["rouge_l_f1"]
+                        if args.save_model:
+                            Trainer.save_model(model, optimizer, args, 
+                                f"{save_dir}/model.pt")
 
                 if (epoch + step / len(train_dl)) >= args.epochs:
                     break
 
             train_loss = train_loss / (num_batches)
+            print(f"epoch {epoch + 1}: train loss :: {train_loss :.3f}")
 
-            scores = Trainer.eval_squad(val_dl, model, tokenizer, args)
-
-            print(f"epoch {epoch + 1}: train loss :: {train_loss :.3f}, eval_scores :: {scores}")
-
-        model_class = model.__class__.__name__
-        date_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filepath = f"models/{model_class}_{date_time}.pt"
-        torch.save(model.state_dict(), filepath)
     
     @staticmethod 
     def eval_mad(model, eval_dl):
@@ -470,19 +499,18 @@ class Trainer:
         return targets
     
     @staticmethod
-    def save_model(model, optimizer, args, config, filepath):
+    def save_model(model, optimizer, args, filepath):
         save_info = {
             'model': model.state_dict(),
             'optim': optimizer.state_dict(),
             'args': args,
-            'model_config': config,
             'system_rng': random.getstate(),
             'numpy_rng': np.random.get_state(),
             'torch_rng': torch.random.get_rng_state(),
         }
 
         torch.save(save_info, filepath)
-        print(f"save the model to {filepath}")
+        print(f"saved the model to {filepath}")
     
     def test(self,args):
         with torch.no_grad():

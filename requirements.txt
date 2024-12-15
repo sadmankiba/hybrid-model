@@ -5,4 +5,5 @@ datasets
 tqdm
 scikit-learn
 torchmetrics
+nltk
 

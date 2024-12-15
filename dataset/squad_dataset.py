@@ -90,26 +90,33 @@ class SquadPrerprocessing:
         attention_mask_orig = encoding["attention_mask"]
         while cur_pos < len(encoding["input_ids"]):
             input_ids = input_ids_orig[:cur_pos]
-            input_ids = torch.concatenate((input_ids,
-                torch.tensor([self.tokenizer.eos_token_id] * (self.max_length - len(input_ids)))))
+            input_ids = torch.concatenate((
+                input_ids,
+                torch.tensor([self.tokenizer.eos_token_id] * (self.max_length - len(input_ids)), dtype=torch.long)
+            ))
             
             attention_mask = attention_mask_orig[:cur_pos]
-            attention_mask = torch.concatenate((attention_mask,
-                torch.tensor([0] * (self.max_length - len(attention_mask)))))
+            attention_mask = torch.concatenate((
+                attention_mask,
+                torch.tensor([0] * (self.max_length - len(attention_mask)), dtype=torch.long)
+            ))
             
             labels = input_ids_orig[1:cur_pos+1].clone()
             if self.split == 'validation':
                 labels[:ans_start_pos - 1] = -100
             
-            labels = torch.concatenate((labels, torch.tensor([-100] * (self.max_length - len(labels))))) 
+            labels = torch.concatenate((
+                labels, 
+                torch.tensor([-100] * (self.max_length - len(labels)), dtype=torch.long)
+            )) 
             
             items.append({
                 'context': context,
                 'question': question,
                 'answer': answer,
-                'input_ids': input_ids.type(torch.LongTensor),
+                'input_ids': input_ids,
                 'attention_mask': attention_mask,
-                'labels': labels.type(torch.LongTensor),
+                'labels': labels,
             })
             
             cur_pos += 1
