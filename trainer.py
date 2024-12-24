@@ -28,8 +28,9 @@ class HybridDataset(Dataset):
     def __init__(self, dataset, args, tokenizer_id='EleutherAI/gpt-neo-125M', n_samples=None):
         self.dataset = dataset
         self.p = args
-        self.tokenizer =  AutoTokenizer.from_pretrained(tokenizer_id)
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_id)
         self.tokenizer.pad_token = self.tokenizer.eos_token
+        
 
     def __len__(self):
         return len(self.dataset)
@@ -38,13 +39,13 @@ class HybridDataset(Dataset):
         ele = self.dataset[idx]
         return ele
 
-    def pad_data(self, data):
+    def pad_data(self, data, max_length=100):
         # Truncate sentences
-        sents = [x["text"][:400] for x in data]
+        # sents = [x["text"][:400] for x in data]
+        sents = [x["text"] for x in data]
         labels = [x["label"] for x in data]
         
-        
-        encoding = self.tokenizer(sents, return_tensors='pt', padding=True, truncation=True)
+        encoding = self.tokenizer(sents, return_tensors='pt', padding=True, truncation=True, max_length=max_length)
         token_ids = torch.LongTensor(encoding['input_ids'])
         attention_mask = torch.LongTensor(encoding['attention_mask'])
         labels = torch.LongTensor(labels)
@@ -231,7 +232,8 @@ class Trainer:
         use_amp = True   # Mixed Precision Training reduces memory usage
         scaler = torch.amp.GradScaler(enabled=use_amp)
         model = model.to(device)
-        optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+        #model.config.pad_token_id = train_dataset.tokenizer.pad_token_id
+        optimizer = optim.AdamW(param_list, lr=args.lr, weight_decay=args.weight_decay)
         ## run for the specified number of epochs
         best_dev_acc = 0
         print("==Started training====")

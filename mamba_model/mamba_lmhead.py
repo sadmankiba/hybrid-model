@@ -3,29 +3,27 @@ from typing import Union
 
 import torch
 import torch.nn as nn
-from transformers import AutoTokenizer, MambaForCausalLM
+from transformers import AutoTokenizer, MambaModel, MambaConfig
 
 
 class MambaTextClassification(nn.Module):
-    def __init__(self, tokenizer_name: str, 
-          model: Union[str, nn.Module], n_classes: int) -> None:
+    def __init__(self, tokenizer_name: str, model_config,num_labels = None) -> None:    #model: Union[str, nn.Module]
         super(MambaTextClassification, self).__init__() 
         
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
         self.tokenizer.pad_token = self.tokenizer.eos_token
 
-        if type(model) == str:
-            self.backbone = MambaForCausalLM.from_pretrained(model, 
-                pad_token_id=self.tokenizer.pad_token_id, output_hidden_states=True)
+        if type(model_config) == str:
+          self.backbone = MambaModel.from_pretrained(model_config)
         else:
-            self.backbone = model
-        
+          self.backbone = MambaModel(MambaConfig(model_config.vocab_size, model_config.hidden_size, num_hidden_layers = model_config.num_mamba_layers, pad_token_id=self.tokenizer.pad_token_id))    
+
         d_model = self.backbone.config.hidden_size
-        self.cls_head = nn.Linear(d_model, n_classes)
+        self.cls_head = nn.Linear(d_model, num_labels if num_labels else model_config.num_labels )
 
     def forward(self, input_ids, attention_mask=None, labels=None):
-        output = self.backbone(input_ids=input_ids, attention_mask=attention_mask)
-        backbone_logits = output.logits # (batch_size, seq_len, vocab_size)
+        output = self.backbone(input_ids=input_ids, cache_position=attention_mask, output_hidden_states=False)
+        # backbone_logits = output.logits # (batch_size, seq_len, vocab_size)
         
         # hidden_states is a Tuple of FloatTensors. Contains hidden states of the 
         # model at each layer + normalized last hidden state. All FloatTensors has same shape 

@@ -2,6 +2,16 @@ import argparse
 import os 
 
 import torch
+
+from trainer import Trainer
+from mamba_model.mamba_lmhead import MambaTextClassification
+from hybrid.hybrid_model import HybridModelTextClassification, HybridModel, MambaFormer
+from hybrid.model_zoo import (
+    get_mamba_causal, 
+    get_gpt_neo_causal,
+)
+from mad.configs import MADConfig, ModelConfig,ImdbConfig
+
 from torch.utils.data import DataLoader
 from transformers import ( 
     AutoConfig,
@@ -156,7 +166,7 @@ def get_gpt_neo_seq_initd(model_config):
             num_labels=model_config.num_labels, id2label=id2label, label2id=label2id)
     model = GPTNeoForSequenceClassification(config)
     model.score = torch.nn.Linear(in_features=128, out_features=2)
-    #print(model)
+    print(model)
     #exit()
     return model
 
@@ -245,6 +255,21 @@ def train_imdb(model_type: str):
         model = get_hybrid_seq_initd(model_config)
     Trainer.train(model, 'EleutherAI/gpt-neo-125M', "imdb", model.parameters(), imdb_config)
 
+def train_imdb_pretrained(model_type: str):
+    imdb_config = ImdbConfig()
+    imdb_config.update_from_kwargs(vars(args))
+    
+    if model_type == "transformers":
+        model = AutoModelForSequenceClassification.from_pretrained('EleutherAI/gpt-neo-125M')
+    elif model_type == "mamba":
+        model = MambaTextClassification("state-spaces/mamba-130m-hf","state-spaces/mamba-130m-hf", 2)
+    elif model_type == "hybrid":
+        model = HybridModelTextClassification(path="RioHassen/manticore-hybrid-gptneo-mamba")
+        # for param in model.hybrid_model.parameters():
+        #     param.requires_grad = False
+    print(model)
+    Trainer.train(model, 'EleutherAI/gpt-neo-125M' if model_type!= "mamba" else "state-spaces/mamba-130m-hf", "imdb", model.parameters(), imdb_config)
+
 
 def train_squad_pretrained(model_type: str):
     if model_type == "transformers":
@@ -286,7 +311,7 @@ def eval_squad_pretrained(args, model_type: str):
 def parse_args():
     parser = argparse.ArgumentParser(description="Train a transformer model with Trainer")
     # Training
-    parser.add_argument("--epochs", type=float, default=5, help="Number of training epochs")
+    parser.add_argument("--epochs", type=float, help="Number of training epochs")
     parser.add_argument("--lr", type=float, default=5e-4, help="Learning rate for training")
     parser.add_argument("--weight_decay", type=float, default=0.01, help="Weight decay for optimizer")
     parser.add_argument("--filepath", type=str, default="models/saved.ptr", help="Path to save the trained model")
@@ -310,6 +335,7 @@ def parse_args():
         help="Task to run. pret_seqclass | initd_seqclass | mad | initd_imdb | eval_squad | tune_squad") 
     parser.add_argument("--model", type=str, default="transformers", 
         help="Model to run. transformers | mamba | hybrid | mamform")  
+    parser.add_argument("--run_hybrid_pretrained", action="store_true", help="Run hybrid from pretrained")
     
     # Initialized models
     parser.add_argument("--num_layers", type=int, default=12, help="Number of layers for the model")
@@ -379,6 +405,9 @@ if __name__ == "__main__":
     elif args.task == "tune_squad":
         train_squad_pretrained(args.model)
     
+    if args.run_hybrid_pretrained:
+        train_imdb_pretrained("hybrid")
+
     if results and args.output_file:
         with open(args.output_file, 'a') as f:
             f.write(str(args) + '\n' + str(results) + '\n')

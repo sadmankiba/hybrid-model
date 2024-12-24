@@ -132,8 +132,8 @@ class ImdbConfig(BaseConfig):
     """Model configuration for models"""
     #data_path: str = './data'
     # training settings:
-    batch_size: int = 32
-    epochs: float = 20
+    batch_size: int = 8
+    epochs: float = 3
     lr: float = 5e-4
     weight_decay: float = 0.002
     #optimizer: str = 'adamw'
