@@ -1,5 +1,6 @@
 import random
 import math
+import os
 from collections import namedtuple
 from types import SimpleNamespace
 
@@ -10,13 +11,16 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torch.utils.data.dataset
 import numpy as np
+from datasets import load_dataset
 from tqdm import tqdm
+from torchmetrics.text.rouge import ROUGEScore
 from torch.utils.data import Dataset, DataLoader, random_split
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from sklearn.metrics import classification_report, f1_score, recall_score, accuracy_score
 
-from datasets import load_dataset
+from dataset.squad_dataset import SquadDataset
 from mad.gen_data import generate_data
+from datetime import datetime
 
 TQDM_DISABLE = False
 
@@ -36,7 +40,8 @@ class HybridDataset(Dataset):
         return ele
 
     def pad_data(self, data, max_length=100):
-        
+        # Truncate sentences
+        # sents = [x["text"][:400] for x in data]
         sents = [x["text"] for x in data]
         labels = [x["label"] for x in data]
         
@@ -70,6 +75,7 @@ class HybridDataset(Dataset):
             })
 
         return batches
+
 
 class Trainer:
     @staticmethod
@@ -107,35 +113,90 @@ class Trainer:
         return acc, f1, y_pred, y_true, sents
     
     @staticmethod
-    def eval_squad(dataloader, model):
+    def eval_squad(val_dl, model, tokenizer, args):
         """Evaluate exact match and BLEU score"""
         model.eval()
-        accuracies = []
-        exact_matches = []
+        token_exact_matches = []
         bleus = []
-        for step, batch in tqdm(enumerate(dataloader, desc='eval', disable=TQDM_DISABLE)):
-            b_ids, b_mask, b_labels, b_sents = batch[0]['token_ids'], \
-                    batch[0]['attention_mask'], batch[0]['labels'], batch[0]['sents']
+        rouges = []
+        
+        for step, batch in enumerate(tqdm(val_dl, desc='eval squad', disable=TQDM_DISABLE)):
+            b_ids, b_mask, b_labels, b_ctxt, b_ques, b_ans = batch['input_ids'], \
+                    batch['attention_mask'], batch['labels'], batch['context'], \
+                    batch['question'], batch['answer']
             
-            b_ids = b_ids.to(model.device)
-            b_mask = b_mask.to(model.device)
+            # find next token pos in each seq
+            nxt_token_pos = torch.argmax((b_mask == 0).int(), dim=1) # (batch_size,)
             
+            b_ids = b_ids.to(model.device) # (batch_size, seq_len)
+            b_mask = b_mask.to(model.device) # (batch_size, seq_len)
+            
+            # generate model predictions
+            all_preds = []
             with torch.no_grad():
-                output = model(input_ids=b_ids, attention_mask=b_mask)
-                logits = output.logits.detach().cpu().numpy()
+                for _ in range(args.max_new_tokens):
+                    output = model(input_ids=b_ids, attention_mask=b_mask) 
+                    logits = output.logits.detach().cpu().numpy() # (batch_size, seq_len, vocab_size)
+                    last_logits = logits[range(args.batch_size), (nxt_token_pos - 1), :]  # (batch_size, vocab_size)
+                    preds = np.argmax(last_logits, axis=-1) # (batch_size,). dtype int64
+                    all_preds.append(preds)
+                    if np.all(preds == tokenizer.eos_token_id):
+                        break
+                    
+                    b_ids[torch.arange(b_ids.size(0)), nxt_token_pos] = torch.tensor(preds).to(model.device)
+                    b_mask[torch.arange(b_mask.size(0)), nxt_token_pos] = 1
+                    
+                    nxt_token_pos += 1
+                    nxt_token_pos = torch.clamp(nxt_token_pos, max=args.max_length - 1)
+
+            # form response and label sentences
+            all_preds = torch.tensor(np.array(all_preds)).T  # (batch_size, max_new_tokens)
+            responses = tokenizer.batch_decode(all_preds, skip_special_tokens=True) # (batch_size,)
+
+            valid_indices = (b_labels != -100).nonzero(as_tuple=True) # equal-len tuple of indices along two axis, 
+                                                                      # 2nd axis contains consecutive indices
+            b_labels_valid = b_labels[valid_indices]
             
-            preds = np.argmax(logits, axis=-1)
-            decoded_preds = decode(preds)
-            decoded_labels = decode(labels)
-            acc = accuracy(labels, preds)
-            exact_match = evaluate.load('exact_match')
+            # get predicted tokens at label positions 
+            labels_first_valid_pos = torch.argmax((b_labels != -100).int(), dim=1) # (batch_size,)
+            pred_indices = (valid_indices[0].clone(), valid_indices[1].clone())
+            for i in range(args.batch_size):
+                mask = (pred_indices[0] == i)
+                pred_indices[1][mask] = pred_indices[1][mask] - labels_first_valid_pos[i]
+            
+            if max(pred_indices[1]) >= all_preds.shape[1]: # pad all_preds
+                all_preds = torch.concat([
+                    all_preds, 
+                    torch.full((all_preds.shape[0], max(pred_indices[1]) - all_preds.shape[1] + 1), 
+                        tokenizer.eos_token_id, dtype=torch.long)
+                ], dim=1)
+
+            preds_valid = all_preds[pred_indices]  # length is same as b_labels_valid
+
+            # compute metrics
+            acc = evaluate.load('accuracy')
             bleu = evaluate.load('bleu')
-            accuracies.append(acc)
-            exact_matches.append(exact_match.compute(decoded_labels, decoded_preds))
-            bleus.append(bleu.compute(decoded_labels, decoded_preds))
+            rouge = ROUGEScore()
+            token_exact_matches.append(acc.compute(references=b_labels_valid, predictions=preds_valid)['accuracy'])
+            rouges.append(rouge(responses, b_ans)['rougeL_fmeasure'])
             
-        return accuracies.mean(), exact_matches(), bleus.mean()
+            batch_bleus = 0
+            for i in range(len(b_ans)):    
+                if b_ans[i] == "" or responses[i] == "":
+                    batch_bleus += int(b_ans[i] == responses[i])
+                    continue
+                
+                batch_bleus += bleu.compute(references=[b_ans[i]], predictions=[responses[i]])['bleu']
             
+            bleus.append(batch_bleus / len(b_ans))
+
+        return {
+            "token_exact_match": sum(token_exact_matches) / len(token_exact_matches), 
+            "bleu": sum(bleus) / len(bleus), 
+            "rouge_l_f1": sum(rouges) / len(rouges)
+        }   
+
+
     @staticmethod
     def train(model, tokenizer_id, dataset_name, param_list, args):
         device  = torch.device(f"cuda:{args.device}") if args.use_gpu else torch.device('cpu') 
@@ -210,7 +271,7 @@ class Trainer:
                 train_loss += loss.item()
                 num_batches += 1
                 
-                if args.log_interval > 0 and step % args.log_interval == 0:
+                if step > 0 and args.log_interval > 0 and step % args.log_interval == 0:
                     dev_acc, dev_f1, *_ = Trainer.model_eval(dev_dataloader, model, device)
                     print(f"epoch {epoch + 1}, step {step}: train loss :: {loss.item() :.3f}, dev acc :: {dev_acc :.3f}")
 
@@ -305,7 +366,93 @@ class Trainer:
         Results = namedtuple("Results", ["best_eval_loss", "best_eval_loss_epoch", "best_eval_acc", "best_eval_acc_epoch"])
         return Results(best_eval_loss=best_eval_loss, best_eval_loss_epoch=best_eval_loss_epoch,
                           best_eval_acc=best_eval_acc, best_eval_acc_epoch=best_eval_acc_epoch)
-       
+    
+    @staticmethod
+    def train_squad(model, tokenizer, args):
+        device  = torch.device(f"cuda:{args.device}") if args.use_gpu else torch.device('cpu') 
+        
+        #### Load data
+        # create the data and its corresponding datasets and dataloader
+        print("device:", device)
+
+        train_ds = SquadDataset(tokenizer, args.max_length, split="train", num_samples=args.train_size)
+        val_ds = SquadDataset(tokenizer, args.max_length, split="validation", num_samples=args.eval_size)
+
+        if args.train_size > 0:
+            train_ds = torch.utils.data.dataset.Subset(train_ds, range(args.train_size))
+        
+        if args.eval_size > 0:
+            val_ds = torch.utils.data.dataset.Subset(val_ds, range(args.eval_size))
+        
+        train_dl = DataLoader(train_ds, shuffle=True, batch_size=args.batch_size)
+        val_dl = DataLoader(val_ds, shuffle=True, batch_size=args.batch_size) 
+
+        # init model
+        scaler = torch.amp.GradScaler(enabled=args.use_amp)
+        model = model.to(device)
+        optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+        
+        # make save directory 
+        model_class = model.__class__.__name__
+        date_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+        save_dir = f"models/{model_class}_{date_time}"
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        
+        ## train
+        best_rouge_l_f1 = -1
+        print("==Started training====")
+        for epoch in range(math.ceil(args.epochs)):
+            model.train()
+            train_loss = 0
+            num_batches = 0
+            for step, batch in enumerate(tqdm(train_dl, desc=f'train-{epoch}', disable=TQDM_DISABLE)):
+                b_ids, b_mask, b_labels = batch['input_ids'], batch['attention_mask'], batch['labels']
+
+                b_ids = b_ids.to(device)
+                b_mask = b_mask.to(device)
+                b_labels = b_labels.to(device) # (batch_size, seq_len)
+                
+                with torch.autocast(device_type=str(device), dtype=torch.float16, enabled=args.use_amp):
+                    output = model(input_ids=b_ids, attention_mask=b_mask) 
+                    logits = output.logits  # (batch_size, seq_len, vocab_size)
+                
+                preds = torch.argmax(logits, dim=-1) # (batch_size, seq_len)
+                loss = F.cross_entropy(logits.permute(0, 2, 1), b_labels, reduction='mean', ignore_index=-100)
+                
+                if args.use_amp:
+                    scaler.scale(loss).backward()
+                    scaler.step(optimizer)
+                    scaler.update()
+                else:
+                    loss.backward()
+                    optimizer.step()
+                
+                optimizer.zero_grad()
+
+                train_loss += loss.item()
+                num_batches += 1
+                
+                if args.log_interval > 0 and step % args.log_interval == 0:
+                    print(f"epoch {epoch + 1}, step {step}: train loss :: {loss.item() :.3f}")
+                
+                if args.eval_interval > 0 and step % args.eval_interval == 0:
+                    scores = Trainer.eval_squad(val_dl, model, tokenizer, args)
+                    print(f"epoch {epoch + 1}, step {step}: eval_scores :: {scores}")
+                    
+                    if scores["rouge_l_f1"] > best_rouge_l_f1:
+                        best_rouge_l_f1 = scores["rouge_l_f1"]
+                        if args.save_model:
+                            Trainer.save_model(model, optimizer, args, 
+                                f"{save_dir}/model.pt")
+
+                if (epoch + step / len(train_dl)) >= args.epochs:
+                    break
+
+            train_loss = train_loss / (num_batches)
+            print(f"epoch {epoch + 1}: train loss :: {train_loss :.3f}")
+
+    
     @staticmethod 
     def eval_mad(model, eval_dl):
         model.eval()
@@ -354,19 +501,18 @@ class Trainer:
         return targets
     
     @staticmethod
-    def save_model(model, optimizer, args, config, filepath):
+    def save_model(model, optimizer, args, filepath):
         save_info = {
             'model': model.state_dict(),
             'optim': optimizer.state_dict(),
             'args': args,
-            'model_config': config,
             'system_rng': random.getstate(),
             'numpy_rng': np.random.get_state(),
             'torch_rng': torch.random.get_rng_state(),
         }
 
         torch.save(save_info, filepath)
-        print(f"save the model to {filepath}")
+        print(f"saved the model to {filepath}")
     
     def test(self,args):
         with torch.no_grad():

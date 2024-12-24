@@ -89,6 +89,33 @@ Epoch is 1-indexed.
 
 ## Benchmarking
 
+## Configs
+
+**MAD Tasks**
+VOCAB_SIZE=16
+SEQ_LEN=32
+NUM_TRAIN=4096
+NUM_TEST=256
+NUM_LAYERS=2
+HIDDEN_SIZE=64
+NUM_HEADS=4
+NUM_TOKENS_TO_COPY=6
+K_MOTIF_SIZE=3
+V_MOTIF_SIZE=3
+FRAC_NOISE=0
+NOISE_VOCAB_SIZE=0
+NOISY_FRAC_NOISE=0.2
+NOISY_NOISE_VOCAB_SIZE=4
+MULTI_QUERY=False
+
+**Training**
+EPOCHS=20
+BATCH_SIZE=32
+LOG_INTERVAL=20
+LR=5e-4
+
+(Loss, iter) and (acc, iter)
+
 | Task     | Transformer | Mamba | Hybrid 1-gres | Hybrid 1-gressf | Hybrid 2-gres | Hybrid 2-gressf | MambaFormer |
 | Sel-Copy | (0.243, 17), (0.91, 16) | (0.0004, 14), (0.999, 2) | (0.005, 13), (0.994, 8) | (0.008, 17), (0.996, 16) | () | () | (0.05, 14), (0.98, 12)
 | ICR      | (1.55, 18), (0.35, 12) | (0.004, 13), (0.999, 5) | (0.002, 8), (1.0, 2) | (0.003, 3), (1, 2) | () | () | (0.02, 17), (0.99, 17) 
@@ -96,3 +123,15 @@ Epoch is 1-indexed.
 | Fuzzy ICR| (1.49, 13), (0.35, 12) | () | (1.68, 4), (0.42, 6) | (1.64, 4), (0.42, 8) | () | () | (2.13, 12), (0.15, 0)
 | Mem      | (0.0003, 12), (1, 0) | () | (0, 0), (1, 0) | (0, 1), (1, 0) | () | () | (0.0, 19), (0.996, 17)
 | Comp     | (0.0005, 12), (1, 0) | () | (0, 0), (1, 0) | (0, 0), (1, 0) | () | () | (0.0, 2), (1.0, 1)
+
+
+**MAD Tasks**
+VOCAB_SIZE=64
+SEQ_LEN=32
+
+Trans does not learn in-context
+
+| Task     | Transformer | Mamba | Hybrid 2-gressf | Mambaformer | 
+| Sel-copy | (0.84, 11), (0.73, 3) |
+| ICR      | (3.4, 6), (0.03, 1) |
+| 

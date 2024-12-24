@@ -39,10 +39,10 @@ SHORTHAND_TO_KEY = {v: k for k,v in KEY_TO_SHORTHAND.items()}
 
 def make_dataset_path(mad_config, **kwargs):
     """Make a dataset path from MADConfig and additional kwargs."""
-    if mad_config.task in task_registry:
-        task = task_registry[mad_config.task]["shorthand"]
+    if mad_config.mad_task in task_registry:
+        task = task_registry[mad_config.mad_task]["shorthand"]
     else:
-        task = mad_config.task
+        task = mad_config.mad_task
     path = f't-{task}_'
     for k in [
         'vocab_size',

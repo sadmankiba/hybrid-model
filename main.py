@@ -1,4 +1,5 @@
 import argparse
+import os 
 
 import torch
 
@@ -11,6 +12,7 @@ from hybrid.model_zoo import (
 )
 from mad.configs import MADConfig, ModelConfig,ImdbConfig
 
+from torch.utils.data import DataLoader
 from transformers import ( 
     AutoConfig,
     AutoTokenizer, 
@@ -19,6 +21,19 @@ from transformers import (
     GPTNeoForSequenceClassification,
     GPTNeoConfig
 )
+
+from trainer import Trainer
+from dataset.squad_dataset import SquadDataset
+from mamba_model.mamba_lmhead import MambaTextClassification
+from hybrid.hybrid_model import HybridModelTextClassification, HybridModel, MambaFormer
+from hybrid.model_zoo import (
+    get_mamba_causal, 
+    get_gpt_neo_causal,
+    get_gpt_neo_tokenizer,
+    get_mamba_tokenizer
+)
+from mad.configs import MADConfig, ModelConfig,ImdbConfig
+
 
 gpt_neo_model_checkpoint = "EleutherAI/gpt-neo-125M"
 mamba_model_checkpoint = "state-spaces/mamba-130m-hf"
@@ -128,11 +143,11 @@ def train_mamba_seqclass_initd(args):
 
 def get_gpt_neo_causal_initd(model_config):
     config = AutoConfig.from_pretrained(gpt_neo_model_checkpoint, 
-        #vocab_size=model_config.vocab_size,
+        vocab_size=model_config.vocab_size,
         num_layers=model_config.num_trans_layers, 
         hidden_size=model_config.hidden_size, 
         num_heads=model_config.num_heads,
-        pad_token_id=50256
+        pad_token_id=0
     )
     model = AutoModelForCausalLM.from_config(config)
     return model
@@ -225,6 +240,8 @@ def train_mad(model_type: str):
     results = Trainer.train_mad(model=model, config=mad_config)
     return results
 
+### Train functions ###
+
 def train_imdb(model_type: str):
     imdb_config = ImdbConfig()
     imdb_config.update_from_kwargs(vars(args))
@@ -235,7 +252,6 @@ def train_imdb(model_type: str):
         model = get_gpt_neo_seq_initd(model_config)
     elif model_type == "mamba":
         model = get_mamba_sequence_initd(model_config)
-    elif model_type == "hybrid":
         model = get_hybrid_seq_initd(model_config)
     Trainer.train(model, 'EleutherAI/gpt-neo-125M', "imdb", model.parameters(), imdb_config)
 
@@ -255,10 +271,42 @@ def train_imdb_pretrained(model_type: str):
     Trainer.train(model, 'EleutherAI/gpt-neo-125M' if model_type!= "mamba" else "state-spaces/mamba-130m-hf", "imdb", model.parameters(), imdb_config)
 
 
-
+def train_squad_pretrained(model_type: str):
+    if model_type == "transformers":
+        model = get_gpt_neo_causal()
+        tokenizer = get_gpt_neo_tokenizer()
+    elif model_type == "mamba":
+        model = get_mamba_causal()
+        tokenizer = get_mamba_tokenizer()
+    elif model_type == "hybrid":
+        trans_model = get_gpt_neo_causal()
+        mamba_model = get_mamba_causal()
+        tokenizer = get_gpt_neo_tokenizer()
+        model = HybridModel(trans_model, mamba_model, args.proj_type, args.num_hybrid_blocks)
+        
+    Trainer.train_squad(model, tokenizer, args)
     
 
+### Eval functions ###
 
+def eval_squad_pretrained(args, model_type: str):
+    if model_type == "transformers":
+        model = get_gpt_neo_causal()
+        tokenizer = get_gpt_neo_tokenizer()
+    elif model_type == "mamba":
+        model = get_mamba_causal()
+        tokenizer = get_mamba_tokenizer()
+    elif model_type == "hybrid":
+        trans_model = get_gpt_neo_causal()
+        mamba_model = get_mamba_causal()
+        tokenizer = get_gpt_neo_tokenizer()
+        model = HybridModel(trans_model, mamba_model, args.proj_type, args.num_hybrid_blocks)
+    
+    squad_ds = SquadDataset(tokenizer, args.max_length, split="validation", num_samples=args.eval_size)
+    squad_val_dl = DataLoader(squad_ds, shuffle=True, batch_size=args.batch_size) # make individual predictions
+    Trainer.eval_squad(squad_val_dl, model, tokenizer, args)
+
+### Parsing ###
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Train a transformer model with Trainer")
@@ -269,28 +317,24 @@ def parse_args():
     parser.add_argument("--filepath", type=str, default="models/saved.ptr", help="Path to save the trained model")
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size for training")
     parser.add_argument("--log_interval", type=int, default=0, help="Log training loss every n steps")
+    parser.add_argument("--eval_interval", type=int, default=0, help="Run evaluation every n steps")
     parser.add_argument("--train_size", type=int, default=0, help="Number of training examples")
     parser.add_argument("--eval_size", type=int, default=0, help="Number of dev examples")
+    parser.add_argument("--max_length", type=int, default=256, help="Max length of input sequence")
     parser.add_argument("--use_gpu", type=bool, default=True, help="Use GPU?")
     parser.add_argument('--device', type=int, default=0)
-
+    parser.add_argument("--use_amp", type=bool, default=True, help="Use automatic mixed precision")
     parser.add_argument("--output_file", type=str, default="results.txt", help="File to save results")
+    parser.add_argument("--save_model", type=bool, default=False, help="Save the model")
     
-    # Which models to run 
-    parser.add_argument("--run_trans", action="store_true", help="Run the transformers model")
-    parser.add_argument("--run_mamba", action="store_true", help="Run the Mamba model")
-    parser.add_argument("--run_hybrid", action="store_true", help="Run the Hybrid model")
-    parser.add_argument("--run_gpt_neo_initd", action="store_true", help="Run the GPT-Neo model")
-    parser.add_argument("--run_mamba_initd", action="store_true", help="Run the Mamba model")
-    parser.add_argument("--run_mad_trans", action="store_true", help="Run the MAD tasks with Transformers")
-    parser.add_argument("--run_mad_mamba", action="store_true", help="Run the MAD tasks with Mamba")
-    parser.add_argument("--run_mad_hybrid", action="store_true", help="Run the MAD tasks with Hybrid model")
-    parser.add_argument("--run_imdb_hybrid", action="store_true", help="Run the IMDB dataset with Hybrid model with newly Initalized weight")
-    parser.add_argument("--run_imdb_trans", action="store_true", help="Run the IMDB dataset with Transformer model with newely initialized weight")
-    parser.add_argument("--run_imdb_mamba", action="store_true", help="Run the IMDB dataset with Mamba model with newely initalized weight")
-    parser.add_argument("--run_mad_mamform", action="store_true", help="Run the MAD tasks with MambaFormer model")
-    parser.add_argument("--run_mamba_pretrained", action="store_true", help="Run IMDB on pretrained MAMBA")
-    parser.add_argument("--run_transformers_pretrained", action="store_true", help="Run Transformers from pretrained")
+    # Inference 
+    parser.add_argument("--max_new_tokens", type=int, default=20, help="Max new tokens to generate")
+    
+    # Which models and tasks to run
+    parser.add_argument("--task", type=str, default="seqclass", 
+        help="Task to run. pret_seqclass | initd_seqclass | mad | initd_imdb | eval_squad | tune_squad") 
+    parser.add_argument("--model", type=str, default="transformers", 
+        help="Model to run. transformers | mamba | hybrid | mamform")  
     parser.add_argument("--run_hybrid_pretrained", action="store_true", help="Run hybrid from pretrained")
     
     # Initialized models
@@ -305,7 +349,7 @@ def parse_args():
     parser.add_argument("--proj_type", type=str, default="res", help="Projection type for hybrid: null, res, gres")
     
     # MAD Tasks
-    parser.add_argument('--task', type=str, default='in-context-recall')
+    parser.add_argument('--mad_task', type=str, default='in-context-recall')
     parser.add_argument('--vocab_size', type=int, default=16)
     parser.add_argument('--seq_len', type=int, default=128)
     parser.add_argument('--frac_noise', type=float, default=0.0)
@@ -335,56 +379,35 @@ def parse_args():
 
 
 if __name__ == "__main__":
+    os.environ['PJRT_DEVICE'] = 'CUDA' # For GCP
     args = parse_args() 
     print("args:", args)
     
     results = None
-    if args.run_trans:
-        train_gpt_neo_seqclass_pretrained(args)
+    if args.task == "seqclass":
+        if args.model == "transformers":
+            train_gpt_neo_seqclass_pretrained(args)
+        elif args.model == "mamba":
+            train_mamba_seqclass_pretrained(args)
+        elif args.model == "hybrid":
+            train_hybrid_seqclass_pretrained(args)
+    elif args.task == "initd_seqclass":
+        if args.model == "transformers":
+            train_gpt_neo_seqclass_initd(args)
+        elif args.model == "mamba":
+            train_mamba_seqclass_initd(args)
+    elif args.task == "mad":
+        results = train_mad(args.model)
+    elif args.task == "initd_imdb":
+        train_imdb(args.model)
+    elif args.task == "eval_squad":
+        eval_squad_pretrained(args, args.model)
+    elif args.task == "tune_squad":
+        train_squad_pretrained(args.model)
     
-    if args.run_mamba:
-        train_mamba_seqclass_pretrained(args)
-        
-    if args.run_hybrid:
-        train_hybrid_seqclass_pretrained(args)
-        
-    if args.run_gpt_neo_initd:
-        train_gpt_neo_seqclass_initd(args)
-        
-    if args.run_mamba_initd:
-        train_mamba_seqclass_initd(args)
-        
-    if args.run_mad_trans:
-        results = train_mad("transformers")
-    
-    if args.run_mad_mamba:
-        results = train_mad("mamba")
-    
-    if args.run_mad_hybrid:
-        results = train_mad("hybrid")
-    
-    if args.run_imdb_hybrid:
-        train_imdb("hybrid")
-
-    if args.run_imdb_trans:
-        train_imdb("transformers")
-    
-    if args.run_imdb_mamba:
-        train_imdb("mamba")
-        
-    
-    if args.run_mad_mamform:
-        results = train_mad("mamform")
-
-    if args.run_mamba_pretrained:
-        train_imdb_pretrained("mamba")
-    if args.run_transformers_pretrained:
-        train_imdb_pretrained("transformers")
     if args.run_hybrid_pretrained:
         train_imdb_pretrained("hybrid")
 
-
-    
-    if results:
+    if results and args.output_file:
         with open(args.output_file, 'a') as f:
             f.write(str(args) + '\n' + str(results) + '\n')

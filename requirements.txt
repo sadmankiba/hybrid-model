@@ -1,0 +1,9 @@
+torch
+transformers
+evaluate
+datasets
+tqdm
+scikit-learn
+torchmetrics
+nltk
+

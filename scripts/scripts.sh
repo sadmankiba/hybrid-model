@@ -2,9 +2,9 @@
 python3 main.py --use_gpu --epochs 1 --log_interval 50 --lr 5e-5 --batch_size 1 --train_size 5000 --eval_size 200
 
 # Pretrained frozen with Classification Head
-python3 main.py --use_gpu --epochs 1 --log_interval 200 --lr 5e-5 --batch_size 1 --train_size 20000 --eval_size 1000 --run_trans
-python3 main.py --use_gpu --epochs 1 --log_interval 200 --lr 5e-5 --batch_size 1 --train_size 5000 --eval_size 200 --run_mamba
-python3 main.py --use_gpu --epochs 1 --log_interval 200 --lr 5e-5 --batch_size 1 --train_size 5000 --eval_size 200 --run_hybrid
+python3 main.py --epochs 1 --log_interval 200 --lr 5e-5 --batch_size 1 --train_size 20000 --eval_size 1000 --run_trans
+python3 main.py --epochs 1 --log_interval 200 --lr 5e-5 --batch_size 1 --train_size 5000 --eval_size 200 --run_mamba
+python3 main.py --epochs 1 --log_interval 200 --lr 5e-5 --batch_size 1 --train_size 5000 --eval_size 200 --run_hybrid
 
 # Initialized models
 python3 main.py --run_gpt_neo_initd --num_layers 4 --hidden_size 128 --num_heads 4 \
@@ -83,4 +83,13 @@ python3 main.py --run_mad_mamform  --task 'in-context-recall' --vocab_size 16  -
 
 #pretraine hybrid 
 python3 main.py --run_hybrid_pretrained --epochs 10 --device 4 --lr 0.00001
+
+# Eval SQUAD
+
+python3 main.py --task eval_squad --model transformers --batch_size 4 --max_length 256 --max_new_tokens 20 --eval_size 100
+
+# Train SQUAD
+
+python3 main.py --task tune_squad --model mamba --epochs 1 --log_interval 200 --lr 5e-5 --batch_size 2 --train_size 2000 --eval_size 500
+python3 main.py --task tune_squad --model transformers --epochs 1 --log_interval 200 --lr 5e-5 --batch_size 4 --train_size 10000 --eval_size 500
 

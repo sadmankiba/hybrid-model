@@ -34,7 +34,7 @@ class MambaTextClassification(nn.Module):
         #   print("field:", field)
             
         # exit()
-        last_hidden_states = output.last_hidden_state #hidden_states[-1]  
+        last_hidden_states = output.hidden_states[-1]  
         mean_hidden_states = last_hidden_states.mean(dim=1) # (batch_size, d_model)
         logits = self.cls_head(mean_hidden_states) # (batch_size, n_classes)
 
@@ -48,6 +48,3 @@ class MambaTextClassification(nn.Module):
           loss = loss_fct(logits, labels)
 
           return ClassificationOutput(loss=loss, logits=logits)
-        
-
-

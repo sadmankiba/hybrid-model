@@ -7,20 +7,20 @@
 # $ run_mad_trans
 
 ## MAD Tasks
-VOCAB_SIZE=16
+VOCAB_SIZE=64
 SEQ_LEN=32
 NUM_TRAIN=4096
 NUM_TEST=256
 NUM_LAYERS=2
 HIDDEN_SIZE=64
 NUM_HEADS=4
-NUM_TOKENS_TO_COPY=6
+NUM_TOKENS_TO_COPY=8
 K_MOTIF_SIZE=3
 V_MOTIF_SIZE=3
 FRAC_NOISE=0
 NOISE_VOCAB_SIZE=0
-NOISY_FRAC_NOISE=0.2
-NOISY_NOISE_VOCAB_SIZE=4
+NOISY_FRAC_NOISE=0.4
+NOISY_NOISE_VOCAB_SIZE=16
 MULTI_QUERY=False
 
 ## Training
@@ -59,7 +59,7 @@ run_mad_trans() {
         else
             args=$non_noisy_args
         fi
-        python3 main.py --run_mad_trans --task $task $args --output_file 'trans.txt' 
+        python3 main.py --task mad --model transformers --mad_task $task $args --output_file 'trans.txt' 
     done
 }
 
