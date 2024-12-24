@@ -17,8 +17,8 @@ python3 main.py --task tune_squad --model mamba --epochs 1 --log_interval 200 --
 
 ## Methods
 
-* `Hybrid-Architecture`: Blocks from HuggingFace `GPT-Neo` and `Mamba` models are combined with custom built projectors. 
-* `Pretraining Projectors`: Projectors in pre-trained hybrids are initialized with random weights and trained on ELI5 dataset. 
+* **Hybrid Architecture:** Blocks from HuggingFace `gpt-neo-125M` and `mamba-130m-hf` models are combined with custom built projectors. 
+* **Pretraining Projectors:** Projectors in pre-trained hybrids are initialized with random weights and trained on ELI5 dataset. 
 
 # Results
 
