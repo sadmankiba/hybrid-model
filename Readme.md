@@ -14,3 +14,20 @@ python3 main.py --run_mad_trans  --task 'in-context-recall' --vocab_size 16  --s
 # Example train SQUAD
 python3 main.py --task tune_squad --model mamba --epochs 1 --log_interval 200 --lr 5e-5 --batch_size 2 --train_size 2000 --eval_size 500
 ``` 
+
+## Methods
+
+* `Hybrid-Architecture`: Blocks from HuggingFace `GPT-Neo` and `Mamba` models are combined with custom built projectors. 
+* `Pretraining Projectors`: Projectors in pre-trained hybrids are initialized with random weights and trained on ELI5 dataset. 
+
+# Results
+
+Evaluation performed on MAD tasks, IMDB sentiment analysis and SQUAD question-answering. 
+
+See [presentation](./Presentation.pdf) and [report](./Report.pdf). 
+
+## Contributors
+
+* [Sadman Sakib](https://github.com/sadmankiba)
+* [Riyad Hassen](https://github.com/RiyadHassen)
+* [Fahad Touseef](https://github.com/Fahad-Touseef)
